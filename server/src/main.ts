@@ -11,7 +11,10 @@ async function bootstrap() {
   
   app.enableCors();
   app.setGlobalPrefix('api', {
-    exclude: [{ path: 'bus/:uuid', method: RequestMethod.GET }]
+    exclude: [
+      { path: 'bus/:uuid', method: RequestMethod.GET },
+      { path: 'bus/:uuid/:tunnelId', method: RequestMethod.GET },
+    ]
   });
   
   await app.listen(3000);

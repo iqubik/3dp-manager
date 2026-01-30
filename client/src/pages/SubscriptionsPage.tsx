@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell,
   TableHead, TableRow, IconButton, Dialog, DialogTitle,
-  DialogContent, TextField, DialogActions
+  DialogContent, TextField, DialogActions,
+  FormControl,
+  Select,
+  InputAdornment,
+  MenuItem,
+  type SelectChangeEvent
 } from '@mui/material';
-import { Delete, Add, Link as LinkIcon, Refresh, QrCode, Share, OpenInNew, CopyAll, ContentCopy } from '@mui/icons-material';
+import { Delete, Add, Link as LinkIcon, Refresh, OpenInNew, ContentCopy, Dns, Router } from '@mui/icons-material';
 import api from '../api';
 
 interface Subscription {
@@ -14,12 +19,20 @@ interface Subscription {
   inbounds: any[];
 }
 
+interface Tunnel {
+  id: number;
+  name: string;
+  ip: string;
+}
+
 export default function SubscriptionsPage() {
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [tunnels, setTunnels] = useState<Tunnel[]>([]);
+  
+  const [selectedServer, setSelectedServer] = useState<string>('main');
 
-  // Для модалки со ссылками
   const [linksOpen, setLinksOpen] = useState(false);
   const [currentLinks, setCurrentLinks] = useState<string[]>([]);
 
@@ -28,6 +41,8 @@ export default function SubscriptionsPage() {
   const loadSubs = async () => {
     const { data } = await api.get('/subscriptions');
     setSubs(data);
+    const tunnelsRes = await api.get('/tunnels');
+    setTunnels(tunnelsRes.data);
   };
 
   const handleCreate = async () => {
@@ -54,15 +69,48 @@ export default function SubscriptionsPage() {
     setLinksOpen(true);
   };
 
+  const handleServerChange = (event: SelectChangeEvent) => {
+    setSelectedServer(event.target.value as string);
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">Подписки</Typography>
+      {tunnels.length > 0 && (
+            <FormControl variant='standard' size="small" sx={{ minWidth: 220, justifyContent: 'center' }}>
+              <Select
+                labelId="server-select-label"
+                value={selectedServer}
+                onChange={handleServerChange}
+                startAdornment={
+                  <InputAdornment position="start">
+                    {selectedServer === 'main' ? <Dns fontSize="small"/> : <Router fontSize="small"/>}
+                  </InputAdornment>
+                }
+              >
+                <MenuItem value="main">
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Основной сервер</Typography>
+                  </Box>
+                </MenuItem>
+                
+                {tunnels.map((t) => (
+                  <MenuItem key={t.id} value={t.id.toString()}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.name}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         <Box>
           <Button startIcon={<Refresh />} onClick={loadSubs} sx={{ mr: 1 }}>Обновить</Button>
           <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>Создать</Button>
         </Box>
       </Box>
+
 
       <Paper>
         <Table>
@@ -83,14 +131,14 @@ export default function SubscriptionsPage() {
                 <TableCell align="right">
                   <IconButton
                     color="primary"
-                    onClick={() => navigator.clipboard.writeText(`http://localhost:3000/bus/${sub.uuid}`)}
+                    onClick={() => navigator.clipboard.writeText(selectedServer === 'main' ? `http://localhost:3000/bus/${sub.uuid}` : `http://localhost:3000/bus/${sub.uuid}/${selectedServer}`)}
                     title="Копировать ссылку"
                   >
                     <ContentCopy />
                   </IconButton>
                   <IconButton
                     color="primary"
-                    onClick={() => window.open(`http://localhost:3000/bus/${sub.uuid}`, '_blank')}
+                    onClick={() => window.open(selectedServer === 'main' ? `http://localhost:3000/bus/${sub.uuid}` : `http://localhost:3000/bus/${sub.uuid}/${selectedServer}`, '_blank')}
                     title="Открыть подписку"
                   >
                     <OpenInNew />

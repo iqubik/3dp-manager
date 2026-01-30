@@ -1,17 +1,14 @@
-import React from 'react';
-import { Box, Container, Grid, Typography, IconButton, Link, Stack, useTheme } from '@mui/material';
-import { GitHub, YouTube, Telegram, Article } from '@mui/icons-material';
+import { Box, Container, Grid, IconButton, Link, Stack } from '@mui/material';
+import { GitHub, YouTube, Telegram } from '@mui/icons-material';
 
 export default function Footer() {
-  const theme = useTheme();
-
   return (
     <Box
       component="footer"
       sx={{
         py: 3,
         px: 2,
-        mt: 'auto', // Ключевой стиль для прижатия к низу
+        mt: 'auto',
         backgroundColor: (theme) =>
           theme.palette.mode === 'light'
             ? theme.palette.grey[200]
@@ -21,18 +18,15 @@ export default function Footer() {
       <Container maxWidth={false}>
         <Grid container spacing={4} justifyContent="space-between" alignItems="center">
 
-          {/* Логотип и копирайт */}
           <Grid size={{ xs: 12, sm: 4 }}>
             <Stack direction="row" alignItems="center" spacing={1}>
               <img src="/img/logo.png" alt="Logo" width={32} height={32} style={{ marginRight: 14 }} />
-
             </Stack>
           </Grid>
 
-          {/* Ссылка на документацию */}
           <Grid size={{ xs: 12, sm: 4 }} sx={{ textAlign: { xs: 'left', sm: 'center' } }}>
             <Link
-              href="https://3dp-manager.com/docs/intro" // Ссылка на ваш репо или доку
+              href="https://3dp-manager.com/docs/intro"
               target="_blank"
               rel="noopener"
               color="text.primary"
@@ -43,7 +37,6 @@ export default function Footer() {
             </Link>
           </Grid>
 
-          {/* Социальные иконки */}
           <Grid size={{ xs: 12, sm: 4 }} sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
             <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
 

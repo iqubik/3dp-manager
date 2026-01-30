@@ -53,7 +53,7 @@ export class TunnelsService {
 
     // 3. Формируем команду
     // export ORIGIN_IP="1.2.3.4" && bash <(curl ...)
-    const command = `export ORIGIN_IP="${mainServerIp}" && bash <(curl -fsSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/main/forwarding_install.sh)`;
+    const command = `export ORIGIN_IP="${mainServerIp}" && bash <(curl -fsSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/dp-gui/forwarding_install.sh)`;
 
     try {
       // 4. Выполняем через SSH

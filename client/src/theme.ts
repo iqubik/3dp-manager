@@ -1,30 +1,27 @@
 import type { PaletteMode } from '@mui/material';
-import { amber, deepOrange, grey } from '@mui/material/colors';
 
-// 1. Определение цветов для Светлой темы
 const lightPalette = {
   primary: {
-    main: '#2563eb', // Насыщенный синий (Tailwind Blue 600)
+    main: '#2563eb',
     light: '#60a5fa',
     dark: '#1e40af',
   },
   secondary: {
-    main: '#7c3aed', // Фиолетовый
+    main: '#7c3aed',
   },
   background: {
-    default: '#f3f4f6', // Светло-серый фон (не чисто белый)
-    paper: '#ffffff',   // Карточки белые
+    default: '#f3f4f6',
+    paper: '#ffffff',
   },
   text: {
-    primary: '#111827', // Почти черный
-    secondary: '#6b7280', // Серый текст
+    primary: '#111827',
+    secondary: '#6b7280',
   },
 };
 
-// 2. Определение цветов для Темной темы
 const darkPalette = {
   primary: {
-    main: '#3b82f6', // Чуть светлее синий для контраста на темном
+    main: '#3b82f6',
     light: '#60a5fa',
     dark: '#1d4ed8',
   },
@@ -32,16 +29,15 @@ const darkPalette = {
     main: '#8b5cf6',
   },
   background: {
-    default: '#0B0F19', // Глубокий темный (Deep Space), лучше чем #121212
-    paper: '#111827',   // Чуть светлее фона (Gray 900)
+    default: '#0B0F19',
+    paper: '#111827',
   },
   text: {
-    primary: '#f9fafb', // Почти белый
-    secondary: '#9ca3af', // Светло-серый
+    primary: '#f9fafb',
+    secondary: '#9ca3af',
   },
 };
 
-// 3. Функция генерации настроек
 export const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
     mode,
@@ -56,15 +52,14 @@ export const getDesignTokens = (mode: PaletteMode) => ({
     h5: { fontWeight: 600 },
     h6: { fontWeight: 600 },
     button: {
-      textTransform: 'none' as const, // Убираем CAPS LOCK на кнопках
+      textTransform: 'none' as const,
       fontWeight: 600,
     },
   },
   shape: {
-    borderRadius: 12, // Скругляем углы у всего (кнопки, карты)
+    borderRadius: 12,
   },
   components: {
-    // Кастомизация глобальных стилей (скроллбар)
     MuiCssBaseline: {
       styleOverrides: {
         body: {
@@ -87,7 +82,6 @@ export const getDesignTokens = (mode: PaletteMode) => ({
         },
       },
     },
-    // Кастомизация Кнопок
     MuiButton: {
       styleOverrides: {
         root: {
@@ -104,11 +98,10 @@ export const getDesignTokens = (mode: PaletteMode) => ({
         },
       },
     },
-    // Кастомизация Карточек (Paper)
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none', // Убираем осветление в темной теме (стандарт Material)
+          backgroundImage: 'none',
         },
         elevation1: {
           boxShadow: mode === 'light'
@@ -118,7 +111,6 @@ export const getDesignTokens = (mode: PaletteMode) => ({
         },
       },
     },
-    // Кастомизация Инпутов
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
@@ -131,12 +123,11 @@ export const getDesignTokens = (mode: PaletteMode) => ({
         },
       },
     },
-    // Кастомизация AppBar (Хедера)
     MuiAppBar: {
       styleOverrides: {
         root: {
           backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(17, 24, 39, 0.8)',
-          backdropFilter: 'blur(8px)', // Эффект стекла
+          backdropFilter: 'blur(8px)',
           borderBottom: `1px solid ${mode === 'light' ? '#e5e7eb' : '#374151'}`,
           boxShadow: 'none',
           color: mode === 'light' ? '#111827' : '#f9fafb',
@@ -144,10 +135,12 @@ export const getDesignTokens = (mode: PaletteMode) => ({
       },
     },
     MuiTableRow: {
-      root: {
-        "&:last-child td": {
-          borderBottom: 0,
-        },
+      styleOverrides: {
+        root: {
+          "&:last-child td": {
+            borderBottom: 0,
+          },
+        }
       }
     }
   },

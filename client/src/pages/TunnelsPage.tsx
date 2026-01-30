@@ -70,7 +70,7 @@ export default function TunnelsPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Редирект серверы (Туннели)</Typography>
+        <Typography variant="h4">Relay серверы</Typography>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>Добавить</Button>
       </Box>
 
@@ -101,16 +101,18 @@ export default function TunnelsPage() {
                   }
                 </TableCell>
                 <TableCell align="right">
-                  <Button
-                    startIcon={loadingId === t.id ? <CircularProgress size={20} /> : <Terminal />}
-                    disabled={loadingId !== null} // Блокируем всё, пока идет установка
-                    onClick={() => handleInstall(t.id)}
-                    sx={{ mr: 1 }}
-                    variant="outlined"
-                    size="small"
-                  >
-                    {loadingId === t.id ? 'Установка...' : 'Установить'}
-                  </Button>
+                  {!t.isInstalled && (
+                    <Button
+                      startIcon={loadingId === t.id ? <CircularProgress size={20} /> : <Terminal />}
+                      disabled={loadingId !== null}
+                      onClick={() => handleInstall(t.id)}
+                      sx={{ mr: 1 }}
+                      variant="outlined"
+                      size="small"
+                    >
+                      {loadingId === t.id ? 'Установка...' : 'Установить'}
+                    </Button>
+                  )}
                   <IconButton color="inherit" onClick={() => handleDelete(t.id)}>
                     <Delete />
                   </IconButton>
