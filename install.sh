@@ -229,7 +229,7 @@ if [[ "$USE_SSL" == "true" ]]; then
     # 1. Nginx Config
 cat > client/nginx-client.conf <<EOF
 server {
-    listen $FRONTEND_PORT ssl;
+    listen $FINAL_PORT ssl;
     server_name $UI_HOST;
     root /usr/share/nginx/html;
     index index.html;
@@ -296,7 +296,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      - "${FINAL_PORT}:${FINAL_PORT}"
     volumes:
       - ${CERT_PATH}:/etc/nginx/certs/fullchain.pem:ro
       - ${KEY_PATH}:/etc/nginx/certs/privkey.pem:ro
@@ -311,7 +311,7 @@ else
     # 1. Nginx Config
 cat > client/nginx-client.conf <<EOF
 server {
-    listen 80;
+    listen ${FINAL_PORT};
     server_name localhost;
     root /usr/share/nginx/html;
     index index.html;
@@ -379,7 +379,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      - "${FINAL_PORT}:${FINAL_PORT}"
 
 volumes:
   pg_data:
