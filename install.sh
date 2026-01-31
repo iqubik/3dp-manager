@@ -44,6 +44,18 @@ if [[ "$ID" != "ubuntu" && "$ID" != "debian" ]]; then
     die "Этот скрипт поддерживает только Ubuntu или Debian: $ID"
 fi
 
+if [ $(free -m | grep Mem: | awk '{print $2}') -lt 2000 ]; then
+    if [ $(free -m | grep Swap: | awk '{print $2}') -eq 0 ]; then
+        log "Мало RAM и нет Swap. Создаем swap-файл 2GB..."
+        fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        log "Swap создан."
+    fi
+fi
+
 log "Проверка зависимостей..."
 if ! command -v curl &> /dev/null; then apt-get update && apt-get install -y curl; fi
 if ! command -v jq &> /dev/null; then apt-get install -y jq; fi
