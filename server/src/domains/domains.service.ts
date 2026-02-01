@@ -1,14 +1,41 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Domain } from './entities/domain.entity';
 
 @Injectable()
-export class DomainsService {
+export class DomainsService implements OnModuleInit {
   constructor(
     @InjectRepository(Domain)
     private repo: Repository<Domain>,
   ) { }
+
+  async onModuleInit() {
+    await this.seedDefaultDomains();
+  }
+
+  private async seedDefaultDomains() {
+    const count = await this.repo.count();
+    
+    if (count === 0) {
+      
+      const defaultDomains = [
+        'ya.ru',
+        'vk.com',
+        'ok.ru',
+        'gosuslugi.ru',
+        'ozon.ru',
+        'max.ru',
+        'vkvideo.ru',
+        'rutube.ru',
+        'kinopoisk.ru',
+        'avito.ru'
+      ];
+
+      const entities = defaultDomains.map(name => this.repo.create({ name }));
+      await this.repo.save(entities);     
+    }
+  }
 
   async create(createDomainDto: { name: string }) {
     const exists = await this.repo.findOne({ where: { name: createDomainDto.name } });
