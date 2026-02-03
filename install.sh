@@ -4,7 +4,6 @@ set -euo pipefail
 #################################
 # КОНФИГУРАЦИЯ И ПЕРЕМЕННЫЕ
 #################################
-REPO_URL="https://github.com/denpiligrim/3dp-manager/archive/refs/heads/dp-gui.tar.gz"
 PROJECT_DIR="/opt/3dp-manager"
 DOCKER_USER="denpiligrim"
 DOCKER_TAG="dp-gui"
@@ -107,9 +106,6 @@ fi
 #################################
 log "Подготовка директории $PROJECT_DIR..."
 mkdir -p "$PROJECT_DIR"
-
-log "Скачивание последней версии проекта..."
-curl -L "$REPO_URL" | tar xz -C "$PROJECT_DIR" --strip-components=1
 
 cd "$PROJECT_DIR"
 
