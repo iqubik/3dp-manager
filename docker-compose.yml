@@ -27,6 +27,8 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       DB_NAME: ${POSTGRES_DB:-3dp_manager}
       JWT_SECRET: ${JWT_SECRET:-secretKey}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
     ports:
     - "3000:3000"
     networks:
