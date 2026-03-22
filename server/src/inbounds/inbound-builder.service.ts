@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
 
 @Injectable()
 export class InboundBuilderService {
   private flag = process.env.COUNTRY_FLAG ?? '%F0%9F%92%AF';
 
-  buildVlessRealityTcp(params: { port: number; uuid: string; domain: string; privateKey: string; publicKey: string }) {
-    const { port, uuid, domain, privateKey, publicKey } = params;
+  buildVlessRealityTcp(params: { port: number; uuid: string; sni: string; privateKey: string; publicKey: string }) {
+    const { port, uuid, sni, privateKey, publicKey } = params;
     return {
       enable: true,
       port,
@@ -26,9 +27,9 @@ export class InboundBuilderService {
         realitySettings: {
           show: false,
           xver: 0,
-          target: `${domain}:443`,
-          dest: `${domain}:443`,
-          serverNames: [domain],
+          target: `${sni}:443`,
+          dest: `${sni}:443`,
+          serverNames: [sni],
           privateKey: privateKey,
           shortIds: [crypto.randomBytes(4).toString('hex'), crypto.randomBytes(4).toString('hex')],
           settings: { publicKey: publicKey, fingerprint: 'random', serverName: '', spiderX: '/' }
@@ -39,8 +40,8 @@ export class InboundBuilderService {
     };
   }
 
-  buildVlessRealityXhttp(params: { port: number; uuid: string; domain: string; privateKey: string; publicKey: string }) {
-    const { port, uuid, domain, privateKey, publicKey } = params;
+  buildVlessRealityXhttp(params: { port: number; uuid: string; sni: string; privateKey: string; publicKey: string }) {
+    const { port, uuid, sni, privateKey, publicKey } = params;
     return {
       enable: true,
       port,
@@ -59,15 +60,15 @@ export class InboundBuilderService {
         realitySettings: {
           show: false,
           xver: 0,
-          target: `${domain}:443`,
-          dest: `${domain}:443`,
-          serverNames: [domain],
+          target: `${sni}:443`,
+          dest: `${sni}:443`,
+          serverNames: [sni],
           privateKey: privateKey,
           shortIds: [crypto.randomBytes(4).toString('hex'), crypto.randomBytes(4).toString('hex')],
           settings: { publicKey: publicKey, fingerprint: 'random', serverName: '', spiderX: '/' }
         },
         xhttpSettings: {
-          host: domain,
+          host: sni,
           path: "/",
           mode: "auto",
           noSSEHeader: false,
@@ -86,13 +87,13 @@ export class InboundBuilderService {
     };
   }
 
-  buildVlessRealityGrpc(params: { port: number; uuid: string; domain: string; privateKey: string; publicKey: string }) {
-    const { port, uuid, domain, privateKey, publicKey } = params;
+  buildVlessRealityGrpc(params: { port: number; uuid: string; sni: string; privateKey: string; publicKey: string }) {
+    const { port, uuid, sni, privateKey, publicKey } = params;
     return {
       enable: true,
       port,
       protocol: "vless",
-      remark: "vless-reality-grpc",
+      remark: "vless-grpc-reality",
       settings: JSON.stringify({
         clients: [{
           id: uuid,
@@ -117,16 +118,16 @@ export class InboundBuilderService {
         realitySettings: {
           show: false,
           xver: 0,
-          target: `${domain}:443`,
-          dest: `${domain}:443`,
-          serverNames: [domain],
+          target: `${sni}:443`,
+          dest: `${sni}:443`,
+          serverNames: [sni],
           privateKey: privateKey,
           shortIds: [crypto.randomBytes(4).toString('hex')],
           settings: { publicKey: publicKey, fingerprint: 'random', serverName: '', spiderX: '/' }
         },
         grpcSettings: {
           serviceName: "myservice",
-          authority: domain,
+          authority: sni,
           multiMode: false,
         }
       }),
@@ -139,8 +140,8 @@ export class InboundBuilderService {
     };
   }
 
-  buildVlessWs(params: { port: number; uuid: string; domain: string }) {
-    const { port, uuid, domain } = params;
+  buildVlessWs(params: { port: number; uuid: string; sni: string }) {
+    const { port, uuid, sni } = params;
     return {
       enable: true,
       port,
@@ -168,7 +169,7 @@ export class InboundBuilderService {
         security: "none",
         externalProxy: [],
         wsSettings: {
-          host: domain,
+          host: sni,
           path: "/",
           acceptProxyProtocol: false,
           heartbeatPeriod: 0,
@@ -265,8 +266,8 @@ export class InboundBuilderService {
     };
   }
 
-  buildTrojanRealityTcp(params: { port: number; uuid: string; domain: string; privateKey: string; publicKey: string }) {
-    const { port, uuid, domain, privateKey, publicKey } = params;
+  buildTrojanRealityTcp(params: { port: number; uuid: string; sni: string; privateKey: string; publicKey: string }) {
+    const { port, uuid, sni, privateKey, publicKey } = params;
     return {
       enable: true,
       port,
@@ -295,9 +296,9 @@ export class InboundBuilderService {
         realitySettings: {
           show: false,
           xver: 0,
-          target: `${domain}:443`,
-          dest: `${domain}:443`,
-          serverNames: [domain],
+          target: `${sni}:443`,
+          dest: `${sni}:443`,
+          serverNames: [sni],
           privateKey: privateKey,
           shortIds: [
             crypto.randomBytes(4).toString("hex"),
@@ -334,29 +335,29 @@ export class InboundBuilderService {
     return uuidv4();
   }
 
-  buildInboundLink(inbound: any, domain: string, idOrPass: string, flagEmoji: string): string {
+  buildInboundLink(inbound: any, sni: string, idOrPass: string, flagEmoji: string): string {
     this.flag = flagEmoji;
     let link = "";
 
     switch (inbound.protocol) {
       case "vless":
-        link = this.buildVlessLink(inbound, domain, idOrPass);
+        link = this.buildVlessLink(inbound, sni, idOrPass);
         break;
       case "vmess":
-        link = this.buildVmessLink(inbound, domain, idOrPass);
+        link = this.buildVmessLink(inbound, sni, idOrPass);
         break;
       case "shadowsocks":
-        link = this.buildSsLink(inbound, domain, idOrPass);
+        link = this.buildSsLink(inbound, sni, idOrPass);
         break;
       case "trojan":
-        link = this.buildTrojanLink(inbound, domain, idOrPass);
+        link = this.buildTrojanLink(inbound, sni, idOrPass);
         break;
     }
 
     return link;
   }
 
-  private buildVlessLink(inbound: any, domain: string, uuid: string) {
+  private buildVlessLink(inbound: any, sni: string, uuid: string) {
     const stream = JSON.parse(inbound.streamSettings);
     const settings = JSON.parse(inbound.settings);
 
@@ -407,17 +408,17 @@ export class InboundBuilderService {
     }
 
     return (
-      `vless://${uuid}@${domain}:${inbound.port}` +
+      `vless://${uuid}@${sni}:${inbound.port}` +
       `?${params.toString()}` +
       `#${this.flag}%20${encodeURIComponent(inbound.remark)}`
     );
   }
 
-  private buildVmessLink(inbound: any, domain: string, uuid: string) {
+  private buildVmessLink(inbound: any, sni: string, uuid: string) {
     const stream = JSON.parse(inbound.streamSettings);
 
     const vmessObj = {
-      add: domain,
+      add: sni,
       aid: '0',
       alpn: "",
       fp: "",
@@ -441,7 +442,7 @@ export class InboundBuilderService {
     return `vmess://${base64}`;
   }
 
-  private buildSsLink(inbound: any, domain: string, idOrPass: string) {
+  private buildSsLink(inbound: any, sni: string, idOrPass: string) {
     const settings = JSON.parse(inbound.settings);
 
     const method = settings.method;
@@ -454,28 +455,67 @@ export class InboundBuilderService {
       .from(userInfo, "utf8")
       .toString("base64");
 
-    return `ss://${base64}@${domain}:${inbound.port}?type=tcp#${this.flag}%20${inbound.remark}`;
+    return `ss://${base64}@${sni}:${inbound.port}?type=tcp#${this.flag}%20${inbound.remark}`;
   }
 
-  private buildTrojanLink(inbound: any, domain: string, password: string) {
+  private buildTrojanLink(inbound: any, sni: string, password: string) {
     const stream = JSON.parse(inbound.streamSettings);
     const reality = stream.realitySettings;
 
     const pbk = reality.settings.publicKey;
-    const sni = reality.serverNames?.[0] || domain;
+    const SNI = reality.serverNames?.[0] || sni;
     const sid = reality.shortIds?.[0] || "";
     const spx = '%2F';
 
     return (
-      `trojan://${password}@${domain}:${inbound.port}` +
+      `trojan://${password}@${SNI}:${inbound.port}` +
       `?type=tcp` +
       `&security=reality` +
       `&pbk=${pbk}` +
       `&fp=random` +
-      `&sni=${sni}` +
+      `&sni=${SNI}` +
       `&sid=${sid}` +
       `&spx=${spx}` +
       `#${this.flag}%20${inbound.remark}`
     );
+  }
+
+  buildHysteria2Link(serverAddress: string, sni: string, remark: string): string {
+    let auth = 'YOUR_AUTH';
+    let obfs = 'salamander';
+    let obfsPass = 'YOUR_PASS';
+    let port = 443;
+
+    try {
+      const configPath = '/etc/hysteria/config.yaml';
+
+      if (fs.existsSync(configPath)) {
+        const fileContent = fs.readFileSync(configPath, 'utf8');
+
+        const authMatch = fileContent.match(/password:\s*['"]?([^'"\n]+)['"]?/);
+        if (authMatch) auth = authMatch[1];
+
+        const obfsMatch = fileContent.match(/type:\s*['"]?(salamander)['"]?/);
+        if (obfsMatch) obfs = obfsMatch[1];
+
+        const passMatch = fileContent.match(/salamander:[\s\S]*?password:\s*['"]?([^'"\n]+)['"]?/);
+        if (passMatch) obfsPass = passMatch[1];
+
+        const listenMatch = fileContent.match(/listen:\s*['"]?:(\d+)['"]?/);
+        if (listenMatch) port = parseInt(listenMatch[1], 10);
+      } else {
+        console.warn(`Конфиг Hysteria2 не найден по пути: ${configPath}`);
+      }
+    } catch (e) {
+      console.error('Ошибка чтения конфига Hysteria2', e);
+    }
+
+    const params = new URLSearchParams();
+    params.set('insecure', '0');
+    params.set('sni', serverAddress);
+    params.set('obfs', obfs);
+    params.set('obfs-password', obfsPass);
+
+    return `hy2://${auth}@${serverAddress}:${port}/?${params.toString()}#${remark}`;
   }
 }

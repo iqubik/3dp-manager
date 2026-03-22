@@ -2,7 +2,7 @@
 
 <p><img src="https://denpiligrim.ru/storage/images/3dp-manager.png" alt="3dp-manager preview"></p>
 
-![Version](https://img.shields.io/badge/version-2.0.1-blue.svg) [![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true)](https://www.gnu.org/licenses/gpl-3.0) [![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=flat&logo=telegram&logoColor=white)](https://t.me/denpiligrim_web) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCOv2tFFYDY4mXOM60PVz8zw)](https://www.youtube.com/@denpiligrim)
+![Version](https://img.shields.io/badge/version-2.0.2-blue.svg) [![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true)](https://www.gnu.org/licenses/gpl-3.0) [![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=flat&logo=telegram&logoColor=white)](https://t.me/denpiligrim_web) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCOv2tFFYDY4mXOM60PVz8zw)](https://www.youtube.com/@denpiligrim)
 
 # 3DP-MANAGER
 
@@ -11,23 +11,23 @@
 **Поддержать проект**
 
 - Банковским переводом:
-	- Карта МИР: `2204320436318077`
-	- Карта MasterCard: `5395452209474530`
+	- :credit_card: Карта МИР: `2204320436318077`
+	- :credit_card: Карта MasterCard: `5395452209474530`
 - На электронный кошелек:
-	- ЮМоney: `4100116897060652`
-	- PayPal: `vasiljevdenisx@gmail.com`
+	- :moneybag: ЮМоney: `4100116897060652`
+	- :moneybag: PayPal: `vasiljevdenisx@gmail.com`
 - Криптовалютой:
-	- USDT | ETH (ERC20 | BEP20): `0x6fe140040f6Cdc1E1Ff2136cd1d60C0165809463`
-	- USDT | TRX (TRC20): `TEWxXmJxvkAmhshp7E61XJGHB3VyM9hNAb`
-	- Bitcoin: `bc1qctntwncsv2yn02x2vgnkrqm00c4h04c0afkgpl`
-	- TON: `UQCZ3MiwyYHXftPItMMzJRYRiKHugr16jFMq2nfOQOOoemLy`
-	- Bybit ID: `165292278`
+	- :coin: USDT | ETH (ERC20 | BEP20): `0x6fe140040f6Cdc1E1Ff2136cd1d60C0165809463`
+	- :coin: USDT | TRX (TRC20): `TEWxXmJxvkAmhshp7E61XJGHB3VyM9hNAb`
+	- :coin: Bitcoin: `bc1qctntwncsv2yn02x2vgnkrqm00c4h04c0afkgpl`
+	- :coin: TON: `UQCZ3MiwyYHXftPItMMzJRYRiKHugr16jFMq2nfOQOOoemLy`
+	- :coin: Bybit ID: `165292278`
 
 ## Описание
 
 Главная цель утилиты — сделать так, чтобы ваш трафик не выглядел одинаковым. Бот генерирует по заданному интервалу 10 подключений с разными параметрами:
 
-- протоколы: `vless`, `vmess`, `shadowsocks`, `trojan`;
+- протоколы: `vless`, `vmess`, `shadowsocks`, `hysteria2`, `trojan`;
 - порты: `443`, `8443` (фиксированные) и случайные из диапазона `10000-60000`;
 - транспорт: `tcp`, `websocket`, `grpc`, `xhttp`;
 - SNI берутся из белого списка доменов (whitelist); можно использовать свой список.

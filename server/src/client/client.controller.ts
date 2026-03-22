@@ -155,11 +155,14 @@ export class ClientController {
       throw new HttpException('Subscription not found', HttpStatus.NOT_FOUND);
     }
 
-    let links = sub.inbounds
-      ?.map(i => i.link)
-      .filter(l => l && l.length > 0) || [];
-
-    links = links.map(link => this.patchLink(link, relayHost));
+    const links = sub.inbounds
+      ?.filter(i => i.link && i.link.length > 0)
+      .map(i => {
+        if (i.protocol === 'custom') {
+          return i.link;
+        }
+        return this.patchLink(i.link, relayHost);
+      }) || [];
 
     const plainTextList = links.join('\n');
     const base64Config = Buffer.from(plainTextList).toString('base64');
@@ -267,7 +270,7 @@ export class ClientController {
       } catch (e) {
         return link;
       }
-    } else if (link.startsWith('vless://') || link.startsWith('trojan://')) {
+    } else if (link.startsWith('vless://') || link.startsWith('trojan://') || link.startsWith('hy2://')) {
       return link.replace(/@.*?:/, `@${newHost}:`);
     } else if (link.startsWith('ss://')) {
       if (link.includes('@')) {
