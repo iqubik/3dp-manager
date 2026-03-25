@@ -30,6 +30,46 @@ need_root() {
   [[ $EUID -eq 0 ]] || die "Запускать только от root"
 }
 
+ensure_nginx_api_timeouts() {
+  local nginx_conf="$1"
+  [[ -f "$nginx_conf" ]] || return 0
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk '
+    BEGIN { in_api = 0; injected = 0 }
+    {
+      line = $0
+
+      if (line ~ /^[[:space:]]*location[[:space:]]+\/api\/[[:space:]]*\{/) {
+        in_api = 1
+        injected = 0
+      }
+
+      if (in_api && line ~ /proxy_(connect|send|read)_timeout[[:space:]]+[0-9]+s;/) {
+        next
+      }
+
+      print line
+
+      if (in_api && line ~ /proxy_set_header[[:space:]]+X-Forwarded-For[[:space:]]+/ && injected == 0) {
+        print "        proxy_connect_timeout 10s;"
+        print "        proxy_send_timeout 650s;"
+        print "        proxy_read_timeout 650s;"
+        injected = 1
+      }
+
+      if (in_api && line ~ /^[[:space:]]*}/) {
+        in_api = 0
+        injected = 0
+      }
+    }
+  ' "$nginx_conf" > "$tmp_file"
+
+  mv "$tmp_file" "$nginx_conf"
+}
+
 REPO_URL=""
 BRANCH=""
 PROJECT_DIR="/opt/3dp-manager"
@@ -97,6 +137,8 @@ services:
     build: $SOURCE_DIR/client
     image: 3dp-manager-client:custom
 EOF
+
+ensure_nginx_api_timeouts "$PROJECT_DIR/client/nginx-client.conf"
 
 log "Сборка custom-образов backend/frontend"
 cd "$PROJECT_DIR"

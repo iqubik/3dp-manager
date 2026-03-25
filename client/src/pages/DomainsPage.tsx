@@ -11,16 +11,35 @@ interface ScanCapabilities {
   timeoutPath: string | null;
 }
 interface ScanResponse {
+  runId: string;
   addr: string;
   scanSeconds: number;
   thread: number;
   timeout: number;
+  startedAt: string;
+  endsAt: string;
+  finishedAt: string;
   timedOut: boolean;
   exitCode: number;
   foundCount: number;
   domains: string[];
   stderrTail: string;
   stdoutTail: string;
+}
+interface ScanStatusResponse {
+  running: boolean;
+  runId: string | null;
+  addr: string | null;
+  scanSeconds: number | null;
+  thread: number | null;
+  timeout: number | null;
+  startedAt: string | null;
+  endsAt: string | null;
+  now: string;
+  remainingSeconds: number;
+  foundCount: number;
+  lastRunId: string | null;
+  lastFinishedAt: string | null;
 }
 
 const SCAN_STORAGE_KEY = 'domains_scan_state_v1';
@@ -46,6 +65,15 @@ export default function DomainsPage() {
   const [scanCandidates, setScanCandidates] = useState<string[]>([]);
   const [scanPanelExpanded, setScanPanelExpanded] = useState(false);
   const [scanStateHydrated, setScanStateHydrated] = useState(false);
+  const [scanStatus, setScanStatus] = useState<ScanStatusResponse | null>(null);
+  const [activeScanRunId, setActiveScanRunId] = useState<string | null>(null);
+
+  const clampInteger = (value: number, fallback: number, min: number, max: number) => {
+    const num = Number.isFinite(value) ? Math.floor(value) : fallback;
+    if (num < min) return min;
+    if (num > max) return max;
+    return num;
+  };
 
   const isLoopbackHost = (value: string) => {
     const host = value.trim().toLowerCase();
@@ -107,6 +135,22 @@ export default function DomainsPage() {
     return '';
   };
 
+  const fetchScanStatus = async () => {
+    const { data } = await api.get('/domains/scan/status');
+    setScanStatus(data);
+    return data as ScanStatusResponse;
+  };
+
+  const fetchLastScanResult = async (expectedRunId?: string | null) => {
+    const { data } = await api.get('/domains/scan/last-result');
+    if (!data) return null;
+    if (expectedRunId && data.runId !== expectedRunId) return null;
+
+    setScanResult(data);
+    setScanCandidates(data.domains || []);
+    return data as ScanResponse;
+  };
+
   const loadDomains = async () => {
     try {
       const { data } = await api.get(`/domains?page=${page + 1}&limit=${rowsPerPage}`);
@@ -127,6 +171,16 @@ export default function DomainsPage() {
       try {
         const capRes = await api.get('/domains/scan/capabilities');
         setScanCapabilities(capRes.data);
+        if (capRes.data?.scannerAvailable) {
+          const status = await fetchScanStatus();
+          if (status.running) {
+            setIsScanning(true);
+            setActiveScanRunId(status.runId);
+            setScanResult(null);
+            setScanCandidates([]);
+            setScanError('');
+          }
+        }
       } catch (e) {
         console.error(e);
       }
@@ -197,6 +251,42 @@ export default function DomainsPage() {
     }
   }, [scanAddr, scanSeconds, scanThread, scanTimeout, scanResult, scanCandidates, scanPanelExpanded, scanStateHydrated]);
 
+  useEffect(() => {
+    if (!isScanning) return;
+
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const status = await fetchScanStatus();
+        if (cancelled) return;
+
+        if (status.running) {
+          if (status.runId) {
+            setActiveScanRunId((prev) => prev ?? status.runId);
+          }
+          return;
+        }
+
+        setIsScanning(false);
+        const runIdToLoad = activeScanRunId || status.lastRunId;
+        await fetchLastScanResult(runIdToLoad);
+        setActiveScanRunId(null);
+      } catch (e) {
+        if (!cancelled) {
+          console.error(e);
+        }
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isScanning, activeScanRunId]);
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -257,25 +347,51 @@ export default function DomainsPage() {
       return;
     }
 
+    const effectiveScanSeconds = clampInteger(scanSeconds, 120, 10, 600);
+    const effectiveThread = clampInteger(scanThread, 2, 1, 20);
+    const effectiveTimeout = clampInteger(scanTimeout, 5, 1, 20);
+    let keepScanning = false;
+
     try {
       setIsScanning(true);
       setScanError('');
       setScanResult(null);
+      setScanStatus(null);
+      setActiveScanRunId(null);
 
       const { data } = await api.post('/domains/scan/start', {
         addr: scanAddr.trim(),
-        scanSeconds,
-        thread: scanThread,
-        timeout: scanTimeout,
+        scanSeconds: effectiveScanSeconds,
+        thread: effectiveThread,
+        timeout: effectiveTimeout,
       });
 
       setScanResult(data);
       setScanCandidates(data.domains || []);
+      setActiveScanRunId(data.runId || null);
+      await fetchScanStatus();
     } catch (e: any) {
       const message = e?.response?.data?.message || e?.message || 'Ошибка запуска сканера';
       setScanError(Array.isArray(message) ? message.join('; ') : message);
+
+      if (e?.response?.status === 429) {
+        try {
+          const status = await fetchScanStatus();
+          if (status.running) {
+            keepScanning = true;
+            setIsScanning(true);
+            setActiveScanRunId(status.runId);
+            setScanError('Скан уже выполняется. Подключились к текущему запуску.');
+          }
+        } catch (statusErr) {
+          console.error(statusErr);
+        }
+      }
     } finally {
-      setIsScanning(false);
+      if (!keepScanning) {
+        setIsScanning(false);
+        setActiveScanRunId(null);
+      }
     }
   };
 
@@ -299,6 +415,8 @@ export default function DomainsPage() {
   const handleClearScannedDomains = async () => {
     setScanCandidates([]);
     setScanResult(null);
+    setScanStatus(null);
+    setActiveScanRunId(null);
     setScanAddr('');
 
     const suggestedAddr = await resolveSuggestedScanAddr({ allowLoopbackFallback: true });
@@ -432,6 +550,15 @@ export default function DomainsPage() {
           </Button>
           {isScanning && <CircularProgress size={24} />}
         </Stack>
+        {isScanning && (
+          <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
+            {scanStatus?.running
+              ? scanStatus.remainingSeconds > 0
+                ? `Сканирование выполняется. Осталось ${scanStatus.remainingSeconds} сек (по данным сервера). Найдено сейчас: ${scanStatus.foundCount}.`
+                : 'Сканирование завершается, ожидайте...'
+              : 'Сканирование запущено, получаем статус от сервера...'}
+          </Typography>
+        )}
 
         {scanError && <Alert severity='error' sx={{ mt: 2 }}>{scanError}</Alert>}
 

@@ -8,12 +8,42 @@ type StartScanPayload = {
   timeout?: number;
 };
 
+type ActiveScanState = {
+  runId: string;
+  addr: string;
+  scanSeconds: number;
+  thread: number;
+  timeout: number;
+  startedAtMs: number;
+  endsAtMs: number;
+  foundCount: number;
+};
+
+type ScanResult = {
+  runId: string;
+  addr: string;
+  scanSeconds: number;
+  thread: number;
+  timeout: number;
+  startedAt: string;
+  endsAt: string;
+  finishedAt: string;
+  timedOut: boolean;
+  exitCode: number;
+  foundCount: number;
+  domains: string[];
+  stderrTail: string;
+  stdoutTail: string;
+};
+
 @Injectable()
 export class DomainScannerService {
   private readonly logger = new Logger(DomainScannerService.name);
   private readonly scannerBin = 'RealiTLScanner-linux-64';
   private isScanRunning = false;
   private readonly logTailLimit = 8000;
+  private activeScan: ActiveScanState | null = null;
+  private lastScanResult: ScanResult | null = null;
 
   getCapabilities() {
     const scannerCheck = spawnSync('sh', ['-lc', `command -v ${this.scannerBin}`], { encoding: 'utf-8' });
@@ -27,11 +57,42 @@ export class DomainScannerService {
     };
   }
 
+  getScanStatus() {
+    const nowMs = Date.now();
+    const active = this.activeScan;
+
+    return {
+      running: Boolean(active),
+      runId: active?.runId ?? null,
+      addr: active?.addr ?? null,
+      scanSeconds: active?.scanSeconds ?? null,
+      thread: active?.thread ?? null,
+      timeout: active?.timeout ?? null,
+      startedAt: active ? new Date(active.startedAtMs).toISOString() : null,
+      endsAt: active ? new Date(active.endsAtMs).toISOString() : null,
+      now: new Date(nowMs).toISOString(),
+      remainingSeconds: active ? Math.max(0, Math.ceil((active.endsAtMs - nowMs) / 1000)) : 0,
+      foundCount: active?.foundCount ?? 0,
+      lastRunId: this.lastScanResult?.runId ?? null,
+      lastFinishedAt: this.lastScanResult?.finishedAt ?? null,
+    };
+  }
+
+  getLastScanResult() {
+    return this.lastScanResult;
+  }
+
   async startScan(payload: StartScanPayload) {
     // Scanner is CPU/network heavy; keep exactly one active run per backend instance
     // to avoid accidental DoS from repeated button clicks.
     if (this.isScanRunning) {
-      throw new HttpException('Сканер уже запущен, дождитесь завершения текущего запуска', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        {
+          message: 'Сканер уже запущен, дождитесь завершения текущего запуска',
+          scanStatus: this.getScanStatus(),
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     const addr = (payload.addr || '').trim();
@@ -65,9 +126,24 @@ export class DomainScannerService {
       '',
     ];
 
+    const runId = this.createRunId();
+    const startedAtMs = Date.now();
+    const endsAtMs = startedAtMs + scanSeconds * 1000;
+
     this.logger.log(`Starting scanner: addr=${addr}, seconds=${scanSeconds}, thread=${thread}, timeout=${connectTimeout}`);
 
     this.isScanRunning = true;
+    this.activeScan = {
+      runId,
+      addr,
+      scanSeconds,
+      thread,
+      timeout: connectTimeout,
+      startedAtMs,
+      endsAtMs,
+      foundCount: 0,
+    };
+
     try {
       const child = spawn('timeout', args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -90,6 +166,9 @@ export class DomainScannerService {
         for (const line of parts) {
           this.extractDomainsFromLog(line, domains);
         }
+        if (this.activeScan?.runId === runId) {
+          this.activeScan.foundCount = domains.size;
+        }
       });
 
       child.stderr.on('data', (chunk: Buffer) => {
@@ -106,6 +185,9 @@ export class DomainScannerService {
 
       if (stdoutRemainder) {
         this.extractDomainsFromLog(stdoutRemainder, domains);
+        if (this.activeScan?.runId === runId) {
+          this.activeScan.foundCount = domains.size;
+        }
       }
 
       const timedOut = exitCode === 124 || exitCode === 137 || exitCode === 143;
@@ -115,11 +197,15 @@ export class DomainScannerService {
       }
 
       const sortedDomains = [...domains].sort();
-      return {
+      const result: ScanResult = {
+        runId,
         addr,
         scanSeconds,
         thread,
         timeout: connectTimeout,
+        startedAt: new Date(startedAtMs).toISOString(),
+        endsAt: new Date(endsAtMs).toISOString(),
+        finishedAt: new Date().toISOString(),
         timedOut,
         exitCode,
         foundCount: sortedDomains.length,
@@ -127,8 +213,12 @@ export class DomainScannerService {
         stderrTail: stderr.slice(-800),
         stdoutTail: stdout.slice(-800),
       };
+
+      this.lastScanResult = result;
+      return result;
     } finally {
       this.isScanRunning = false;
+      this.activeScan = null;
     }
   }
 
@@ -173,5 +263,9 @@ export class DomainScannerService {
       return merged;
     }
     return merged.slice(-this.logTailLimit);
+  }
+
+  private createRunId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 }

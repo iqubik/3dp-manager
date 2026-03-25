@@ -277,6 +277,9 @@ server {
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
     }
 }
 server {
@@ -388,6 +391,9 @@ server {
         proxy_cache_bypass \$http_upgrade;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
     }
 }
 server {

@@ -24,6 +24,16 @@ export class DomainsController {
     return this.domainScannerService.getCapabilities();
   }
 
+  @Get('scan/status')
+  scanStatus() {
+    return this.domainScannerService.getScanStatus();
+  }
+
+  @Get('scan/last-result')
+  lastScanResult() {
+    return this.domainScannerService.getLastScanResult();
+  }
+
   @Post('scan/start')
   startScan(@Body() body: { addr: string; scanSeconds?: number; thread?: number; timeout?: number }) {
     return this.domainScannerService.startScan(body);
