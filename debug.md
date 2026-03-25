@@ -91,3 +91,16 @@ docker compose -f docker-compose.yml -f docker-compose.custom.yml logs --tail 12
 - `can not modify /etc/nginx/conf.d/default.conf (read-only file system?)`
 
 Это штатно при `:ro`-монтировании nginx-конфига.
+
+## Полная custom-установка на VPS (dp-custom)
+Сценарий "с нуля или поверх существующей установки":
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/install-custom.sh | bash -s -- -r https://github.com/iqubik/3dp-manager.git -b dp-custom
+```
+
+Только обновление custom-кода (без базовой установки):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/update-custom.sh | bash -s -- -r https://github.com/iqubik/3dp-manager.git -b dp-custom
+```
