@@ -115,7 +115,10 @@ if [[ ! -d "$SOURCE_DIR/.git" ]]; then
 else
   cd "$SOURCE_DIR"
   git remote set-url origin "$REPO_URL"
-  git fetch origin "$BRANCH"
+  # Explicitly map the remote branch to refs/remotes/origin/<branch>.
+  # This is required when the repo was previously cloned with --single-branch
+  # (for example from another branch), otherwise origin/<branch> may be absent.
+  git fetch origin "$BRANCH:refs/remotes/origin/$BRANCH"
 
   if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
     git checkout "$BRANCH"
