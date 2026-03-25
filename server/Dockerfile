@@ -10,6 +10,19 @@ COPY . .
 
 RUN npm run build
 
+FROM golang:1.23-alpine AS scanner-builder
+
+ARG REALITLSCANNER_REPO=https://github.com/XTLS/RealiTLScanner.git
+ARG REALITLSCANNER_REF=main
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+WORKDIR /src
+
+RUN apk add --no-cache git
+RUN git clone --depth 1 --branch ${REALITLSCANNER_REF} ${REALITLSCANNER_REPO} .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/RealiTLScanner-linux-64 .
+
 FROM node:24-alpine
 
 WORKDIR /app
@@ -17,7 +30,20 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
+# Runtime tools required for checker/scanner integration scripts.
+RUN apk add --no-cache \
+    bash \
+    curl \
+    python3 \
+    grep \
+    gawk \
+    coreutils \
+    procps \
+    ca-certificates
+
 COPY --from=builder /app/dist ./dist
+COPY --from=scanner-builder /out/RealiTLScanner-linux-64 /usr/local/bin/RealiTLScanner-linux-64
+RUN chmod +x /usr/local/bin/RealiTLScanner-linux-64
 
 ENV NODE_ENV=production
 ENV PORT=3000

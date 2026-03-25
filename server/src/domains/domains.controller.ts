@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Body, Param, Delete, Query } from '@nestjs/common';
 import { DomainsService } from './domains.service';
+import { DomainScannerService } from './domain-scanner.service';
 
 @Controller('domains')
 export class DomainsController {
-  constructor(private readonly domainsService: DomainsService) { }
+  constructor(
+    private readonly domainsService: DomainsService,
+    private readonly domainScannerService: DomainScannerService,
+  ) { }
 
   @Post()
   create(@Body() body: { name: string }) {
@@ -13,6 +17,16 @@ export class DomainsController {
   @Post('upload')
   uploadMany(@Body() body: { domains: string[] }) {
     return this.domainsService.createMany(body.domains);
+  }
+
+  @Get('scan/capabilities')
+  scanCapabilities() {
+    return this.domainScannerService.getCapabilities();
+  }
+
+  @Post('scan/start')
+  startScan(@Body() body: { addr: string; scanSeconds?: number; thread?: number; timeout?: number }) {
+    return this.domainScannerService.startScan(body);
   }
 
   @Get('all')
