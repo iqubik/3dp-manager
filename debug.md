@@ -104,3 +104,69 @@ curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/instal
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/update-custom.sh | bash -s -- -r https://github.com/iqubik/3dp-manager.git -b dp-custom
 ```
+
+## Git workflow: dp-custom -> dp-fix -> автор
+Роли веток:
+- `dp-custom`: рабочая ветка для всех локальных/продовых/вспомогательных правок (включая `update-custom.sh`, `debug.md`, `pub.md`).
+- `dp-fix`: чистая ветка для PR в репозиторий автора (только код, который должен попасть upstream).
+
+Почему GitHub Desktop "не даёт":
+- Он не всегда удобно поддерживает сценарий "перенос отдельных коммитов между ветками одного репо".
+- Для этого используем terminal и `cherry-pick`.
+
+Базовый цикл работы:
+
+```bash
+# 1) Работаем в dp-custom
+git checkout dp-custom
+# ... правки ...
+git add .
+git commit -m "feat: ... / fix: ..."
+git push origin dp-custom
+```
+
+Проверка прода из `dp-custom`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/update-custom.sh | bash -s -- -r https://github.com/iqubik/3dp-manager.git -b dp-custom
+```
+
+Перенос только нужных коммитов в `dp-fix`:
+
+```bash
+# 2) Смотрим, что нового в dp-custom относительно dp-fix
+git log --oneline dp-fix..dp-custom
+
+# 3) Переходим в чистую ветку PR
+git checkout dp-fix
+
+# 4) Переносим только нужные коммиты
+git cherry-pick <commit_sha_1> <commit_sha_2> ...
+
+# 5) Пушим чистую ветку и обновляем PR автору
+git push origin dp-fix
+```
+
+Если конфликт при cherry-pick:
+
+```bash
+git status
+# исправить конфликтные файлы
+git add <resolved_files>
+git cherry-pick --continue
+```
+
+Если нужно отменить текущий перенос:
+
+```bash
+git cherry-pick --abort
+```
+
+Проверка перед push в `dp-fix`:
+
+```bash
+git status --short
+git diff --name-only upstream/dp-fix..HEAD
+```
+
+Ожидаем в `dp-fix` только те файлы, которые должны уйти автору.
