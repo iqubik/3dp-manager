@@ -115,19 +115,16 @@ if [[ ! -d "$SOURCE_DIR/.git" ]]; then
 else
   cd "$SOURCE_DIR"
   git remote set-url origin "$REPO_URL"
-  # Explicitly map the remote branch to refs/remotes/origin/<branch>.
-  # This is required when the repo was previously cloned with --single-branch
-  # (for example from another branch), otherwise origin/<branch> may be absent.
-  git fetch origin "$BRANCH:refs/remotes/origin/$BRANCH"
+  git fetch origin "$BRANCH"
 
   if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
     git checkout "$BRANCH"
+    # Merge from FETCH_HEAD to support repos cloned with --single-branch
+    # where origin/<branch> may not exist.
+    git merge --ff-only FETCH_HEAD || die "Не удалось fast-forward merge. Проверьте локальные изменения в $SOURCE_DIR."
   else
-    git checkout -b "$BRANCH" --track "origin/$BRANCH"
+    git checkout -b "$BRANCH" FETCH_HEAD
   fi
-
-  # Обновляем только fast-forward, чтобы не переписывать локальные ручные правки.
-  git merge --ff-only "origin/$BRANCH" || die "Не удалось fast-forward merge. Проверьте локальные изменения в $SOURCE_DIR."
 fi
 
 COMPOSE_OVERRIDE="$PROJECT_DIR/docker-compose.custom.yml"
