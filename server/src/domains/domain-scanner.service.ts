@@ -1,5 +1,6 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable, InternalServerErrorException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { spawn, spawnSync } from 'child_process';
+import { isIP } from 'net';
 
 type StartScanPayload = {
   addr: string;
@@ -95,10 +96,7 @@ export class DomainScannerService {
       );
     }
 
-    const addr = (payload.addr || '').trim();
-    if (!addr) {
-      throw new BadRequestException('Поле addr обязательно');
-    }
+    const addr = this.validateAndNormalizeAddr(payload.addr || '');
 
     const scanSeconds = this.clampNumber(payload.scanSeconds, 120, 10, 600);
     const thread = this.clampNumber(payload.thread, 2, 1, 20);
@@ -267,5 +265,42 @@ export class DomainScannerService {
 
   private createRunId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private validateAndNormalizeAddr(input: string) {
+    let value = (input || '').trim().toLowerCase();
+    if (!value) {
+      throw new BadRequestException('Поле addr обязательно');
+    }
+
+    // Reject URL-like input to avoid ambiguous parsing.
+    if (/^[a-z]+:\/\//i.test(value) || /[/?#]/.test(value)) {
+      throw new BadRequestException('Укажите только IP или hostname без схемы и пути');
+    }
+
+    // Support common copy-paste format: [IPv6]
+    value = value.replace(/^\[|\]$/g, '');
+
+    // Normalize FQDN with trailing dot to plain host form.
+    value = value.replace(/\.+$/, '');
+    if (!value) {
+      throw new BadRequestException('Некорректный addr');
+    }
+
+    if (value === 'localhost' || isIP(value) > 0 || this.isValidHostname(value)) {
+      return value;
+    }
+
+    throw new BadRequestException('Некорректный addr: укажите IPv4/IPv6 или hostname');
+  }
+
+  private isValidHostname(hostname: string) {
+    if (hostname.length > 253) return false;
+    const labels = hostname.split('.');
+    if (labels.length === 0) return false;
+
+    return labels.every((label) =>
+      /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label),
+    );
   }
 }
