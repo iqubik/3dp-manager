@@ -30,6 +30,20 @@ need_root() {
   [[ $EUID -eq 0 ]] || die "Запускать только от root"
 }
 
+resolve_compose_cmd() {
+  if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD=("docker" "compose")
+    return 0
+  fi
+
+  if command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD=("docker-compose")
+    return 0
+  fi
+
+  die "Не найден Docker Compose (ни v2 plugin, ни v1 binary)"
+}
+
 ensure_nginx_api_timeouts() {
   local nginx_conf="$1"
   [[ -f "$nginx_conf" ]] || return 0
@@ -104,7 +118,8 @@ need_root
 
 command -v git >/dev/null 2>&1 || die "git не установлен"
 command -v docker >/dev/null 2>&1 || die "docker не установлен"
-docker compose version >/dev/null 2>&1 || die "docker compose v2 недоступен"
+resolve_compose_cmd
+log "Compose команда: ${COMPOSE_CMD[*]}"
 
 log "Подготовка исходников в $SOURCE_DIR"
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
@@ -142,15 +157,15 @@ ensure_nginx_api_timeouts "$PROJECT_DIR/client/nginx-client.conf"
 
 log "Сборка custom-образов backend/frontend"
 cd "$PROJECT_DIR"
-docker compose -f docker-compose.yml -f docker-compose.custom.yml build backend frontend
+"${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml build backend frontend
 
 log "Перезапуск контейнеров с custom-образами"
-docker compose -f docker-compose.yml -f docker-compose.custom.yml up -d --remove-orphans backend frontend
+"${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml up -d --remove-orphans backend frontend
 
 log "Проверка статуса контейнеров"
-docker compose -f docker-compose.yml -f docker-compose.custom.yml ps
+"${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml ps
 
-if docker compose -f docker-compose.yml -f docker-compose.custom.yml exec -T backend sh -lc "command -v RealiTLScanner-linux-64 >/dev/null"; then
+if "${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml exec -T backend sh -lc "command -v RealiTLScanner-linux-64 >/dev/null"; then
   log "Scanner binary найден в backend-контейнере"
 else
   warn "Scanner binary не найден в backend-контейнере"
