@@ -19,6 +19,36 @@ NC='\033[0m'
 log() { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+die() { error "$1"; }
+
+resolve_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker" "compose")
+        return 0
+    fi
+
+    if command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker-compose")
+        return 0
+    fi
+
+    warn "Не найден Docker Compose (ни v2 plugin, ни v1 binary). Пытаемся установить..."
+    apt-get update
+    apt-get install -y docker-compose-plugin || true
+
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker" "compose")
+        return 0
+    fi
+
+    apt-get install -y docker-compose || true
+    if command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker-compose")
+        return 0
+    fi
+
+    die "Не удалось установить Docker Compose. Установите docker compose plugin (v2) или docker-compose (v1)."
+}
 
 #################################
 # ASCII-баннер
@@ -100,6 +130,9 @@ EOF
     systemctl enable docker
     systemctl start docker
 fi
+
+resolve_compose_cmd
+log "Compose команда: ${COMPOSE_CMD[*]}"
 
 #################################
 # ЗАГРУЗКА ПРОЕКТА
@@ -477,10 +510,10 @@ fi
 #################################
 log "Сборка и запуск контейнеров..."
 # Останавливаем старые, если были
-docker compose down || true
+"${COMPOSE_CMD[@]}" down || true
 
 # Запускаем сборку и старт
-docker compose up --build -d --remove-orphans
+"${COMPOSE_CMD[@]}" up --build -d --remove-orphans
 
 log "Очистка кэша сборки..."
 docker image prune -f
