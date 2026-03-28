@@ -78,6 +78,13 @@ const patchLink = function (link: string, newHost: string): string {
 
 const generateId = () => Math.random().toString(36).substring(7);
 
+const getSubscriptionUrl = (uuid: string, tunnelId: string | number) => {
+  // Поскольку Nginx/Vite Proxy не используется, направляем запросы /bus/ жестко на порт 3000 бэкенда
+  const baseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
+  const tunnelPart = tunnelId !== 'main' ? `/${tunnelId}` : '';
+  return `${baseUrl}/bus/${uuid}${tunnelPart}`;
+};
+
 export default function SubscriptionsPage() {
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
@@ -341,14 +348,14 @@ export default function SubscriptionsPage() {
                     <>
                       <IconButton
                         color="primary"
-                        onClick={() => navigator.clipboard.writeText(`${location.protocol}//${location.hostname}:${location.port}/bus/${sub.uuid}${selectedServer !== 'main' ? `/${selectedServer}` : ''}`)}
+                        onClick={() => navigator.clipboard.writeText(getSubscriptionUrl(sub.uuid, selectedServer))}
                         title="Копировать ссылку"
                       >
                         <ContentCopy />
                       </IconButton>
                       <IconButton
                         color="primary"
-                        onClick={() => window.open(`${location.protocol}//${location.hostname}:${location.port}/bus/${sub.uuid}${selectedServer !== 'main' ? `/${selectedServer}` : ''}`, '_blank')}
+                        onClick={() => window.open(getSubscriptionUrl(sub.uuid, selectedServer), '_blank')}
                         title="Открыть подписку"
                       >
                         <OpenInNew />
@@ -376,13 +383,13 @@ export default function SubscriptionsPage() {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         {isMobile && activeSub && (
-          <MenuItem onClick={() => navigator.clipboard.writeText(`${location.protocol}//${location.hostname}:${location.port}/bus/${activeSub.uuid}${selectedServer !== 'main' ? `/${selectedServer}` : ''}`)}>
+          <MenuItem onClick={() => navigator.clipboard.writeText(getSubscriptionUrl(activeSub.uuid, selectedServer))}>
             <ListItemIcon><ContentCopy fontSize="small" color="primary" /></ListItemIcon>
             <ListItemText>Копировать ссылку</ListItemText>
           </MenuItem>
         )}
         {isMobile && activeSub && (
-          <MenuItem onClick={() => window.open(`${location.protocol}//${location.hostname}:${location.port}/bus/${activeSub.uuid}${selectedServer !== 'main' ? `/${selectedServer}` : ''}`, '_blank')}>
+          <MenuItem onClick={() => window.open(getSubscriptionUrl(activeSub.uuid, selectedServer), '_blank')}>
             <ListItemIcon><OpenInNew fontSize="small" color="primary" /></ListItemIcon>
             <ListItemText>Открыть подписку</ListItemText>
           </MenuItem>
