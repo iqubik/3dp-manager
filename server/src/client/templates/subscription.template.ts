@@ -159,11 +159,11 @@ export function generateSubscriptionHtmlWithQr(
           transition: color 0.3s ease;
         }
 
-        .error-icon {
+        .header-icon {
           width: 64px;
           height: 64px;
           margin: 0 auto 20px;
-          color: var(--error-color);
+          color: var(--button-bg);
         }
 
         #subscription-links { display: none; }
@@ -181,11 +181,13 @@ export function generateSubscriptionHtmlWithQr(
       </button>
 
       <div class="card">
-        <svg class="error-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg class="header-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
         </svg>
         <h2>${subscriptionName}</h2>
-        <p style="color: var(--text-secondary);">Отсканируйте QR-код в приложении Happ, v2RayTun или Streisand</p>
+        <p style="color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
+          Отсканируйте QR-код в приложениях<br>Happ, v2RayTun или Streisand
+        </p>
 
         <div class="qr-box">
           <img src="${qrDataUrl}" alt="QR Code" />
@@ -198,7 +200,7 @@ export function generateSubscriptionHtmlWithQr(
           Копировать ссылку
         </button>
 
-        <div class="note">Для автоматического обновления конфигов используйте эту ссылку</div>
+        <div class="note">Для автоматического обновления конфигов<br>используйте эту ссылку</div>
       </div>
       <textarea id="subscription-links">${base64Config}</textarea>
 
