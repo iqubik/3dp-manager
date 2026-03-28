@@ -26,6 +26,7 @@ export class SubscriptionsService {
       name: dto.name,
       uuid: uuidv4(),
       inboundsConfig: dto.inboundsConfig || [],
+      isAutoRotationEnabled: dto.isAutoRotationEnabled ?? true,
     });
 
     return this.subRepo.save(sub);
@@ -45,6 +46,10 @@ export class SubscriptionsService {
 
     if (dto.inboundsConfig) {
       sub.inboundsConfig = dto.inboundsConfig;
+    }
+
+    if (dto.isAutoRotationEnabled !== undefined) {
+      sub.isAutoRotationEnabled = dto.isAutoRotationEnabled;
     }
 
     return this.subRepo.save(sub);

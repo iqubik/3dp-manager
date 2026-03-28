@@ -6,6 +6,8 @@ import {
   Body,
   Param,
   Put,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
@@ -35,5 +37,40 @@ export class SubscriptionsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.subscriptionsService.remove(id);
+  }
+
+  @Put('bulk-auto-rotation')
+  @HttpCode(HttpStatus.OK)
+  async bulkUpdateAutoRotation(
+    @Body() body: { subscriptionIds: string[]; enabled: boolean },
+  ) {
+    const { subscriptionIds, enabled } = body;
+
+    if (!Array.isArray(subscriptionIds)) {
+      return {
+        success: false,
+        message: 'subscriptionIds должен быть массивом',
+      };
+    }
+
+    const updated: string[] = [];
+    for (const id of subscriptionIds) {
+      try {
+        await this.subscriptionsService.update(id, {
+          name: '',
+          isAutoRotationEnabled: enabled,
+        });
+        updated.push(id);
+      } catch {
+        // Пропускаем неудачные обновления
+      }
+    }
+
+    return {
+      success: true,
+      message: `Обновлено ${updated.length} подписок`,
+      updatedCount: updated.length,
+      updatedIds: updated,
+    };
   }
 }
