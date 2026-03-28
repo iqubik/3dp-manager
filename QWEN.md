@@ -297,3 +297,7 @@ curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/update
 - Telegram: [@denpiligrim_web](https://t.me/denpiligrim_web)
 - YouTube: [DenPiligrim](https://www.youtube.com/@denpiligrim)
 - Issues: GitHub репозиторий
+
+## Qwen Added Memories
+- Правило: никогда не поддакивать пользователю без фактической проверки. Всегда проверять через команды перед выводами.
+- Проверка процессов node на Windows: Get-CimInstance Win32_Process -Filter "ProcessId = PID" | Select CommandLine, ParentProcessId — показывает точный путь и родителя.
