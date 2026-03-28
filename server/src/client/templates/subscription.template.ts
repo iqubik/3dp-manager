@@ -104,7 +104,7 @@ export function generateSubscriptionHtmlWithQr(
           transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
-        button {
+        .action-btn {
           background-color: var(--button-bg);
           color: white;
           border: none;
@@ -120,8 +120,37 @@ export function generateSubscriptionHtmlWithQr(
           gap: 8px;
         }
 
-        button:hover { background-color: var(--button-hover); }
-        button:active { transform: scale(0.98); }
+        .action-btn:hover { background-color: var(--button-hover); }
+        .action-btn:active { transform: scale(0.98); }
+
+        .theme-toggle {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: var(--bg-paper);
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+          padding: 0;
+          z-index: 1000;
+        }
+        
+        .theme-toggle:hover {
+          background-color: var(--link-box-bg);
+        }
+
+        .theme-toggle svg {
+          width: 24px;
+          height: 24px;
+        }
 
         .note {
           margin-top: 20px;
@@ -141,6 +170,16 @@ export function generateSubscriptionHtmlWithQr(
       </style>
     </head>
     <body>
+      <!-- Кнопка смены темы -->
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Переключить тему">
+        <svg id="icon-sun" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <svg id="icon-moon" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+
       <div class="card">
         <svg class="error-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -154,7 +193,7 @@ export function generateSubscriptionHtmlWithQr(
 
         <div class="link-box" id="link-text">${currentUrl}</div>
 
-        <button onclick="copyLink()">
+        <button class="action-btn" onclick="copyLink()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"/></svg>
           Копировать ссылку
         </button>
@@ -164,30 +203,50 @@ export function generateSubscriptionHtmlWithQr(
       <textarea id="subscription-links">${base64Config}</textarea>
 
       <script>
-        // Синхронизация темы с основным приложением через localStorage
-        (function() {
-          function applyTheme() {
-            const themeMode = localStorage.getItem('themeMode');
-            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
-            // 3DP-MANAGER использует themeMode: light, dark, system
-            if (themeMode === 'dark' || (themeMode === 'system' && systemDark)) {
-              document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-              document.documentElement.setAttribute('data-theme', 'light');
-            }
+        // Функция применения темы
+        function applyTheme() {
+          let themeMode = localStorage.getItem('themeMode');
+          
+          // ТЁМНАЯ ТЕМА ПО УМОЛЧАНИЮ, если значение не задано
+          if (!themeMode) {
+            themeMode = 'dark';
+            localStorage.setItem('themeMode', 'dark');
           }
 
+          const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = themeMode === 'dark' || (themeMode === 'system' && systemDark);
+          
+          if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('icon-sun').style.display = 'block';
+            document.getElementById('icon-moon').style.display = 'none';
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.getElementById('icon-sun').style.display = 'none';
+            document.getElementById('icon-moon').style.display = 'block';
+          }
+        }
+
+        // Глобальная функция переключения темы по кнопке
+        function toggleTheme() {
+          const currentTheme = document.documentElement.getAttribute('data-theme');
+          const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          localStorage.setItem('themeMode', newTheme);
+          applyTheme();
+        }
+
+        // Инициализация при загрузке
+        (function() {
           applyTheme();
 
-          // Слушаем изменения темы в localStorage
+          // Слушаем изменения темы из других вкладок
           window.addEventListener('storage', (e) => {
             if (e.key === 'themeMode') {
               applyTheme();
             }
           });
 
-          // Слушаем изменения системной темы
+          // Слушаем системные настройки (если выбрана системная тема)
           window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
             const themeMode = localStorage.getItem('themeMode');
             if (themeMode === 'system') {
@@ -199,10 +258,10 @@ export function generateSubscriptionHtmlWithQr(
         function copyLink() {
           const link = document.getElementById('link-text').innerText;
           navigator.clipboard.writeText(link).then(() => {
-            const btn = document.querySelector('button');
+            const btn = document.querySelector('.action-btn');
             const originalText = btn.innerHTML;
             btn.innerHTML = 'Скопировано!';
-            btn.style.backgroundColor = '#2e7d32';
+            btn.style.backgroundColor = 'var(--button-success)';
             setTimeout(() => {
               btn.innerHTML = originalText;
               btn.style.backgroundColor = 'var(--button-bg)';
@@ -317,6 +376,35 @@ export function generateErrorHtml(
           opacity: 0.9;
         }
 
+        .theme-toggle {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: var(--bg-paper);
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+          padding: 0;
+          z-index: 1000;
+        }
+        
+        .theme-toggle:hover {
+          background-color: var(--error-bg);
+        }
+
+        .theme-toggle svg {
+          width: 24px;
+          height: 24px;
+        }
+
         .note {
           margin-top: 20px;
           font-size: 12px;
@@ -326,6 +414,16 @@ export function generateErrorHtml(
       </style>
     </head>
     <body>
+      <!-- Кнопка смены темы -->
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Переключить тему">
+        <svg id="icon-sun" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <svg id="icon-moon" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+
       <div class="card">
         <svg class="error-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -337,19 +435,40 @@ export function generateErrorHtml(
       </div>
 
       <script>
-        // Синхронизация темы с основным приложением через localStorage
-        (function() {
-          function applyTheme() {
-            const themeMode = localStorage.getItem('themeMode');
-            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
-            if (themeMode === 'dark' || (themeMode === 'system' && systemDark)) {
-              document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-              document.documentElement.setAttribute('data-theme', 'light');
-            }
+        // Функция применения темы
+        function applyTheme() {
+          let themeMode = localStorage.getItem('themeMode');
+          
+          // ТЁМНАЯ ТЕМА ПО УМОЛЧАНИЮ
+          if (!themeMode) {
+            themeMode = 'dark';
+            localStorage.setItem('themeMode', 'dark');
           }
 
+          const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const isDark = themeMode === 'dark' || (themeMode === 'system' && systemDark);
+          
+          if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('icon-sun').style.display = 'block';
+            document.getElementById('icon-moon').style.display = 'none';
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.getElementById('icon-sun').style.display = 'none';
+            document.getElementById('icon-moon').style.display = 'block';
+          }
+        }
+
+        // Глобальная функция переключения темы по кнопке
+        function toggleTheme() {
+          const currentTheme = document.documentElement.getAttribute('data-theme');
+          const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          localStorage.setItem('themeMode', newTheme);
+          applyTheme();
+        }
+
+        // Инициализация при загрузке
+        (function() {
           applyTheme();
 
           window.addEventListener('storage', (e) => {
