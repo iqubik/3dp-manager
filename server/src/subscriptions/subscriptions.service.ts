@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Subscription } from './entities/subscription.entity';
 import { XuiService } from '../xui/xui.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -32,7 +33,7 @@ export class SubscriptionsService {
     return this.subRepo.save(sub);
   }
 
-  async update(id: string, dto: Partial<CreateSubscriptionDto>) {
+  async update(id: string, dto: UpdateSubscriptionDto) {
     const sub = await this.subRepo.findOne({
       where: { id },
       relations: ['inbounds'],
@@ -42,6 +43,7 @@ export class SubscriptionsService {
       return null;
     }
 
+    // Пустое имя не обновляется — защита от случайной очистки
     if (dto.name && dto.name.trim().length > 0) {
       sub.name = dto.name;
     }

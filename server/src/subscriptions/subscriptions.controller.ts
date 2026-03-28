@@ -8,9 +8,11 @@ import {
   Put,
   HttpCode,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -40,6 +42,13 @@ export class SubscriptionsController {
       };
     }
 
+    if (subscriptionIds.length > 100) {
+      return {
+        success: false,
+        message: 'Максимум 100 ID за раз',
+      };
+    }
+
     const updated: string[] = [];
     const notFound: string[] = [];
 
@@ -64,11 +73,18 @@ export class SubscriptionsController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @Param('id') id: string,
-    @Body() updateSubscriptionDto: CreateSubscriptionDto,
+    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
   ) {
-    return this.subscriptionsService.update(id, updateSubscriptionDto);
+    const result = await this.subscriptionsService.update(
+      id,
+      updateSubscriptionDto,
+    );
+    if (!result) {
+      throw new NotFoundException(`Подписка ${id} не найдена`);
+    }
+    return result;
   }
 
   @Delete(':id')
