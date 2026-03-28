@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subscription } from './entities/subscription.entity';
@@ -32,17 +32,19 @@ export class SubscriptionsService {
     return this.subRepo.save(sub);
   }
 
-  async update(id: string, dto: CreateSubscriptionDto) {
+  async update(id: string, dto: Partial<CreateSubscriptionDto>) {
     const sub = await this.subRepo.findOne({
       where: { id },
       relations: ['inbounds'],
     });
 
     if (!sub) {
-      throw new NotFoundException(`Subscription with ID ${id} not found`);
+      return null;
     }
 
-    sub.name = dto.name;
+    if (dto.name && dto.name.trim().length > 0) {
+      sub.name = dto.name;
+    }
 
     if (dto.inboundsConfig) {
       sub.inboundsConfig = dto.inboundsConfig;

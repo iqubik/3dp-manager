@@ -54,15 +54,17 @@ export class SubscriptionsController {
     }
 
     const updated: string[] = [];
+    const notFound: string[] = [];
+
     for (const id of subscriptionIds) {
-      try {
-        await this.subscriptionsService.update(id, {
-          name: '',
-          isAutoRotationEnabled: enabled,
-        });
+      const result = await this.subscriptionsService.update(id, {
+        isAutoRotationEnabled: enabled,
+      });
+
+      if (result) {
         updated.push(id);
-      } catch {
-        // Пропускаем неудачные обновления
+      } else {
+        notFound.push(id);
       }
     }
 
@@ -70,7 +72,7 @@ export class SubscriptionsController {
       success: true,
       message: `Обновлено ${updated.length} подписок`,
       updatedCount: updated.length,
-      updatedIds: updated,
+      notFound: notFound.length > 0 ? notFound : undefined,
     };
   }
 }
