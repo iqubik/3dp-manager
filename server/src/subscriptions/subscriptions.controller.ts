@@ -26,19 +26,6 @@ export class SubscriptionsController {
     return this.subscriptionsService.create(createSubscriptionDto);
   }
 
-  @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateSubscriptionDto: CreateSubscriptionDto,
-  ) {
-    return this.subscriptionsService.update(id, updateSubscriptionDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.subscriptionsService.remove(id);
-  }
-
   @Put('bulk-auto-rotation')
   @HttpCode(HttpStatus.OK)
   async bulkUpdateAutoRotation(
@@ -74,5 +61,18 @@ export class SubscriptionsController {
       updatedCount: updated.length,
       notFound: notFound.length > 0 ? notFound : undefined,
     };
+  }
+
+  @Put(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateSubscriptionDto: CreateSubscriptionDto,
+  ) {
+    return this.subscriptionsService.update(id, updateSubscriptionDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.subscriptionsService.remove(id);
   }
 }
