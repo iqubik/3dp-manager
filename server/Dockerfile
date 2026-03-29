@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 
@@ -32,7 +32,7 @@ FROM node:24-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --legacy-peer-deps
 
 # Runtime tools required for checker/scanner integration scripts.
 RUN apk add --no-cache \
