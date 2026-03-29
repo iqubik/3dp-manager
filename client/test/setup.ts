@@ -12,6 +12,7 @@ afterEach(() => {
 // Оставляем только важные ошибки через test.skip()
 const originalConsoleLog = console.log
 const originalConsoleError = console.error
+const originalConsoleWarn = console.warn
 
 beforeAll(() => {
   // Фильтруем шумные логи от приложений
@@ -23,11 +24,29 @@ beforeAll(() => {
       message.includes('[Settings]') ||
       message.includes('[API]') ||
       message.includes('[Login]') ||
-      message.includes('[Rotation]')
+      message.includes('[Rotation]') ||
+      message.includes('[Domains]') ||
+      message.includes('[Subs]') ||
+      message.includes('[Scanner]')
     ) {
       return
     }
     originalConsoleLog(...args)
+  }
+
+  // Подавляем console.warn для известных предупреждений
+  console.warn = (...args) => {
+    const message = args.join(' ')
+    if (
+      message.includes('[Tunnels]') ||
+      message.includes('[Settings]') ||
+      message.includes('[Domains]') ||
+      message.includes('[Subs]') ||
+      message.includes('[Scanner]')
+    ) {
+      return
+    }
+    originalConsoleWarn(...args)
   }
 
   // Подавляем console.error для известных предупреждений React
@@ -36,7 +55,10 @@ beforeAll(() => {
     // Пропускаем предупреждения act(...) - они не критичны
     if (
       message.includes('act(...)') ||
-      message.includes('An update to')
+      message.includes('An update to') ||
+      message.includes('[Login]') ||
+      message.includes('[Settings]') ||
+      message.includes('[Subs]')
     ) {
       return
     }
@@ -48,6 +70,7 @@ afterAll(() => {
   // Восстанавливаем console после всех тестов
   console.log = originalConsoleLog
   console.error = originalConsoleError
+  console.warn = originalConsoleWarn
 })
 
 // Мок для MUI icons-material - используем vi.mock с factory
