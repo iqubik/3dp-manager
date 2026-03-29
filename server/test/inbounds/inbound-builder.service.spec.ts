@@ -238,6 +238,14 @@ describe('InboundBuilderService', () => {
   });
 
   describe('buildHysteria2Link', () => {
+    beforeEach(() => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('должен создать ссылку hysteria2', () => {
       const result = service.buildHysteria2Link(
         '192.168.1.1',
