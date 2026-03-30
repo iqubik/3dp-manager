@@ -105,9 +105,19 @@ export class AuthService {
 
     if (!login) {
       this.logger.debug('Инициализация администратора...');
-      const envLogin = this.configService.get<string>('ADMIN_LOGIN') || 'admin';
-      const envPass =
-        this.configService.get<string>('ADMIN_PASSWORD') || 'admin';
+      const envLogin = this.configService.get<string>('ADMIN_LOGIN');
+      const envPass = this.configService.get<string>('ADMIN_PASSWORD');
+
+      // Проверяем, что переменные окружения установлены
+      if (!envLogin || !envPass) {
+        this.logger.error(
+          'Критическая ошибка: ADMIN_LOGIN и ADMIN_PASSWORD должны быть установлены в переменных окружения',
+        );
+        this.logger.error(
+          'Проверьте .env файл или docker-compose.yml на наличие этих переменных',
+        );
+        throw new Error('ADMIN_LOGIN и ADMIN_PASSWORD должны быть установлены');
+      }
 
       const loginSetting = this.settingsRepo.create({
         key: 'admin_login',
