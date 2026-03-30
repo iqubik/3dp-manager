@@ -44,6 +44,37 @@ resolve_compose_cmd() {
   die "Не найден Docker Compose (ни v2 plugin, ни v1 binary)"
 }
 
+check_containers_running() {
+  log "Проверка статуса контейнеров..."
+  local timeout=${1:-60}
+  local elapsed=0
+  local failed=0
+  
+  while [ $elapsed -lt $timeout ]; do
+    failed=0
+    # Формат: NAME\tSTATUS (например: "3dp-postgres\tUp 2 days" или "3dp-postgres\tError")
+    while IFS=$'\t' read -r container_name status; do
+      if [ -n "$container_name" ]; then
+        # Проверяем, что статус содержит running/healthy (Up, running, healthy, restarting)
+        if ! echo "$status" | grep -qiE "(running|healthy|up[[:space:]]|restarting)"; then
+          failed=1
+          warn "Контейнер $container_name в статусе: $status"
+        fi
+      fi
+    done < <("${COMPOSE_CMD[@]}" ps --format "table {{.Name}}\t{{.Status}}" --all 2>/dev/null | tail -n +2)
+    
+    if [ $failed -eq 0 ]; then
+      log "Все контейнеры запущены успешно"
+      return 0
+    fi
+    
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  
+  return 1
+}
+
 ensure_nginx_api_timeouts() {
   local nginx_conf="$1"
   [[ -f "$nginx_conf" ]] || return 0
@@ -162,8 +193,12 @@ cd "$PROJECT_DIR"
 log "Перезапуск контейнеров с custom-образами"
 "${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml up -d --remove-orphans backend frontend
 
-log "Проверка статуса контейнеров"
-"${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml ps
+# Проверка: все ли контейнеры запустились
+if ! check_containers_running 60; then
+    error "Не удалось запустить контейнеры. Логи:"
+    "${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml logs --tail=50
+    die "Обновление прервано из-за ошибки запуска контейнеров"
+fi
 
 if "${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml exec -T backend sh -lc "command -v RealiTLScanner-linux-64 >/dev/null"; then
   log "Scanner binary найден в backend-контейнере"
