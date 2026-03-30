@@ -1,23 +1,107 @@
 # Локальная отладка 3dp-manager
 
+> ⚠️ **Внимание:** Локальный стенд использует учётные данные `admin/admin` **только для разработки**. Production-скрипты (`install.sh`, `update.sh`) автоматически генерируют безопасные пароли.
+
 ## Порты локального стенда
 - frontend: `http://localhost:8080`
 - backend API: `http://localhost:3100/api`
 - postgres: `localhost:15432`
 
+## Учётные данные (по умолчанию)
+
+**Локальный стенд (`.env.local`):**
+```
+ADMIN_LOGIN: admin
+ADMIN_PASSWORD: admin
+POSTGRES_USER: admin
+POSTGRES_PASSWORD: admin
+POSTGRES_DB: 3dp_manager
+JWT_SECRET: localDevSecretKey12345678901234567890
+```
+
+> ⚠️ **Важно:** Для локальной разработки используется `admin/admin`. Production-скрипты автоматически генерируют случайные пароли при установке/обновлении.
+
 ## Запуск/перезапуск
+
+### Полный запуск (с пересозданием volumes)
 ```powershell
-# полный запуск
-docker compose -f docker-compose.local.yml up -d --build
+# Первый запуск или полная пересборка
+docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --force-recreate
 
-# частичный перезапуск только фронта
-docker compose -f docker-compose.local.yml up -d --build --no-deps frontend
+# Если нужно очистить БД и пересоздать volumes
+docker compose -f docker-compose.local.yml --env-file .env.local down -v
+docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
+```
 
-# частичный перезапуск только бэка
-docker compose -f docker-compose.local.yml up -d --build --no-deps server
+### Частичный перезапуск
+```powershell
+# Только frontend (без пересборки)
+docker compose -f docker-compose.local.yml --env-file .env.local restart frontend
 
-# статус контейнеров
-docker compose -f docker-compose.local.yml ps
+# Только backend (без пересборки)
+docker compose -f docker-compose.local.yml --env-file .env.local restart server
+
+# Frontend с пересборкой
+docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps frontend
+
+# Backend с пересборкой
+docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps server
+```
+
+### Статус контейнеров
+```powershell
+docker compose -f docker-compose.local.yml --env-file .env.local ps
+```
+
+### Просмотр логов
+```powershell
+# Backend логи
+docker compose -f docker-compose.local.yml --env-file .env.local logs -f server
+
+# Frontend логи
+docker compose -f docker-compose.local.yml --env-file .env.local logs -f frontend
+
+# Последние 50 строк
+docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 50 server
+```
+
+### Остановка
+```powershell
+# Остановка без удаления volumes
+docker compose -f docker-compose.local.yml --env-file .env.local down
+
+# Полная очистка (включая volumes)
+docker compose -f docker-compose.local.yml --env-file .env.local down -v
+```
+
+## Быстрые проверки
+```powershell
+# Проверка frontend (должен вернуть 200)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080
+
+# Проверка backend API (должен вернуть 401 без токена)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/api
+
+# Проверка login endpoint
+curl -s -X POST http://localhost:3100/api/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+```
+
+## Тесты и линтинг
+
+### Backend
+```powershell
+cd server
+npm run lint
+npm run test
+npm run test:cov
+```
+
+### Frontend
+```powershell
+cd client
+npm run lint
+npm run test
+npm run test:cov
 ```
 
 ## Что уже встроено
@@ -59,6 +143,43 @@ docker compose -f docker-compose.local.yml down
 ```
 
 ## Перед PR
+
+### 1. Проверка локального стенда
+```powershell
+# Убедиться, что все контейнеры работают
+docker compose -f docker-compose.local.yml --env-file .env.local ps
+
+# Проверить логи на наличие ошибок
+docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 100 server
+docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 100 frontend
+
+# Быстрый тест API
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/api
+```
+
+### 2. Прогнать тесты
+```powershell
+# Backend тесты
+cd server
+npm run test
+
+# Frontend тесты
+cd client
+npm run test
+```
+
+### 3. Прогнать линтинг
+```powershell
+# Backend
+cd server
+npm run lint
+
+# Frontend
+cd client
+npm run lint
+```
+
+### 4. Проверка изменений
 ```powershell
 git status --short
 git diff --name-only
@@ -67,6 +188,9 @@ git diff --name-only
 Проверяем, что в PR идут только целевые изменения фичи.
 
 ## Обновление production (кастомная ветка)
+
+> ⚠️ **Важно:** Начиная с версии 2.0.3, скрипты обновления автоматически проверяют и заменяют учётные данные по умолчанию (`admin/admin`) на безопасные. Новые пароли выводятся в лог при обновлении.
+
 Для сервера, где `bash <(curl ...)` не работает из-за `/dev/fd`, используем пайп:
 
 ```bash
@@ -93,6 +217,9 @@ docker compose -f docker-compose.yml -f docker-compose.custom.yml logs --tail 12
 Это штатно при `:ro`-монтировании nginx-конфига.
 
 ## Полная custom-установка на VPS (dp-custom)
+
+> ⚠️ **Важно:** Скрипт `install-custom.sh` автоматически генерирует безопасные пароли при установке. Учётные данные выводятся в лог после установки — сохраните их!
+
 Сценарий "с нуля или поверх существующей установки":
 
 ```bash
@@ -170,3 +297,31 @@ git diff --name-only upstream/dp-fix..HEAD
 ```
 
 Ожидаем в `dp-fix` только те файлы, которые должны уйти автору.
+
+## Файл .env.local
+
+Файл `.env.local` в корне проекта содержит переменные окружения для локального стенда:
+
+```bash
+# Локальные учётные данные для разработки
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=3dp_manager
+JWT_SECRET=localDevSecretKey12345678901234567890
+ADMIN_LOGIN=admin
+ADMIN_PASSWORD=admin
+PORT=3000
+```
+
+> ⚠️ **Не коммитьте `.env.local` в репозиторий!** Файл должен быть добавлен в `.gitignore` для безопасности.
+
+### Изменение учётных данных
+
+Если нужно изменить логин/пароль для локальной разработки:
+
+1. Отредактируйте `.env.local`
+2. Пересоздайте контейнеры с очисткой volumes:
+   ```powershell
+   docker compose -f docker-compose.local.yml --env-file .env.local down -v
+   docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
+   ```
