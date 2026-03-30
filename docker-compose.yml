@@ -31,8 +31,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       PORT: ${PORT}
       LOG_LEVEL: ${LOG_LEVEL}
-    # ports:
-    #   - "${PORT}:${PORT}"  # ← Закомментировано: бэк доступен только внутри Docker network
+    ports:
+      - "${PORT}:${PORT}"
     networks:
       - app-network
 
