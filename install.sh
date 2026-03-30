@@ -61,9 +61,10 @@ check_containers_running() {
         # Получаем статус всех контейнеров текущего compose проекта
         # Формат: NAME\tSTATUS (например: "3dp-postgres\tUp 2 days" или "3dp-postgres\tError")
         while IFS=$'\t' read -r container_name status; do
-            if [ -n "$container_name" ]; then
-                # Проверяем, что статус содержит running/healthy (Up, running, healthy, restarting)
-                if ! echo "$status" | grep -qiE "(running|healthy|up[[:space:]]|restarting)"; then
+            if [ -n "$container_name" ] && [ -n "$status" ]; then
+                # Проверяем, что статус содержит Up/running/healthy/restarting
+                # Up, Up 2 days, Up Less than a second, (healthy), running, restarting
+                if ! echo "$status" | grep -qiE "^up|running|healthy|restarting"; then
                     failed=1
                     warn "Контейнер $container_name в статусе: $status"
                 fi
