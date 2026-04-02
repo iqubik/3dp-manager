@@ -245,7 +245,7 @@ ensure_bus_location() {
       if (found_api && $0 ~ /^[[:space:]]*\}/) {
         print ""
         print "    location /bus/ {"
-        print "        proxy_pass http://backend:3000/bus/;"
+        print "        proxy_pass http://backend:3100/bus/;"
         print "        proxy_set_header Host $http_host;"
         print "        proxy_set_header X-Real-IP $remote_addr;"
         print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"

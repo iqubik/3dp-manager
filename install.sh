@@ -355,7 +355,7 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
     location /api/ {
-        proxy_pass http://backend:3000/api/;
+        proxy_pass http://backend:3100/api/;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -364,7 +364,7 @@ server {
         proxy_read_timeout 650s;
     }
     location /bus/ {
-        proxy_pass http://backend:3000/bus/;
+        proxy_pass http://backend:3100/bus/;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -374,7 +374,7 @@ server {
     }
 }
 server {
-    listen 3000 ssl;
+    listen 3100 ssl;
     server_name $UI_HOST;
     client_max_body_size 50M;
 
@@ -382,7 +382,7 @@ server {
     ssl_certificate_key /etc/nginx/certs/privkey.pem;
 
     location / {
-        proxy_pass http://backend:3000/;
+        proxy_pass http://backend:3100/;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -428,7 +428,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_LOGIN: ${ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASS}
-      PORT: 3000
+      PORT: 3100
     volumes:
       - /etc/hysteria/config.yaml:/etc/hysteria/config.yaml:ro
     networks:
@@ -442,7 +442,7 @@ services:
       - backend
     ports:
       - "${FINAL_PORT}:443"
-      - "3000:3000"
+      - "3100:3100"
     volumes:
       - ./client/nginx-client.conf:/etc/nginx/conf.d/default.conf:ro
       - ${CERT_PATH}:/etc/nginx/certs/fullchain.pem:ro
@@ -474,7 +474,7 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
     location /api/ {
-        proxy_pass http://backend:3000/api/;
+        proxy_pass http://backend:3100/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -487,7 +487,7 @@ server {
         proxy_read_timeout 650s;
     }
     location /bus/ {
-        proxy_pass http://backend:3000/bus/;
+        proxy_pass http://backend:3100/bus/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -501,10 +501,10 @@ server {
     }
 }
 server {
-    listen 3000;
+    listen 3100;
     server_name localhost;
     location / {
-        proxy_pass http://backend:3000/;
+        proxy_pass http://backend:3100/;
         proxy_set_header Host \$http_host;
     }
 }
@@ -547,7 +547,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_LOGIN: ${ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASS}
-      PORT: 3000
+      PORT: 3100
     volumes:
       - /etc/hysteria/config.yaml:/etc/hysteria/config.yaml:ro
     networks:
@@ -561,7 +561,7 @@ services:
       - backend
     ports:
       - "${FINAL_PORT}:80"
-      - "3000:3000"
+      - "3100:3100"
     volumes:
       - ./client/nginx-client.conf:/etc/nginx/conf.d/default.conf:ro
     networks:

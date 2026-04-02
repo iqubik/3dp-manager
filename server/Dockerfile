@@ -50,8 +50,8 @@ COPY --from=scanner-builder /out/RealiTLScanner-linux-64 /usr/local/bin/RealiTLS
 RUN chmod +x /usr/local/bin/RealiTLScanner-linux-64
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3100
 
-EXPOSE 3000
+EXPOSE 3100
 
 CMD ["node", "dist/main"]
