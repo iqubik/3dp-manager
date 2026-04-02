@@ -3,9 +3,14 @@
 > ⚠️ **Внимание:** Локальный стенд использует учётные данные `admin/admin` **только для разработки**. Production-скрипты (`install.sh`, `update.sh`) автоматически генерируют безопасные пароли.
 
 ## Порты локального стенда
-- frontend: `http://localhost:8080`
-- backend API: `http://localhost:3100/api`
-- postgres: `localhost:15432`
+
+| Сервис | Порт | Доступ |
+|--------|------|--------|
+| **frontend** | `http://localhost:8080` | ✅ Доступен из браузера |
+| **backend API** | `http://localhost:3100/api` | ❌ Скрыт внутри Docker network |
+| **postgres** | `5432/tcp` | ❌ Скрыт внутри Docker network |
+
+> 🔒 **Безопасность:** Backend и PostgreSQL не проброшены наружу — доступны только внутри Docker network.
 
 ## Учётные данные (по умолчанию)
 

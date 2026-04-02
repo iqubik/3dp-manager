@@ -363,6 +363,15 @@ server {
         proxy_send_timeout 650s;
         proxy_read_timeout 650s;
     }
+    location /bus/ {
+        proxy_pass http://backend:3000/bus/;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
+    }
 }
 server {
     listen 3000 ssl;
@@ -466,6 +475,19 @@ server {
     }
     location /api/ {
         proxy_pass http://backend:3000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$http_host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
+    }
+    location /bus/ {
+        proxy_pass http://backend:3000/bus/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
