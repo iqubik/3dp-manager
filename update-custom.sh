@@ -201,31 +201,76 @@ ensure_nginx_api_timeouts() {
   tmp_file="$(mktemp)"
 
   awk '
-    BEGIN { in_api = 0; injected = 0 }
+    BEGIN { in_api = 0; in_bus = 0; injected = 0 }
     {
       line = $0
 
       if (line ~ /^[[:space:]]*location[[:space:]]+\/api\/[[:space:]]*\{/) {
         in_api = 1
+        in_bus = 0
         injected = 0
       }
 
-      if (in_api && line ~ /proxy_(connect|send|read)_timeout[[:space:]]+[0-9]+s;/) {
+      if (line ~ /^[[:space:]]*location[[:space:]]+\/bus\/[[:space:]]*\{/) {
+        in_bus = 1
+        in_api = 0
+        injected = 0
+      }
+
+      if ((in_api || in_bus) && line ~ /proxy_(connect|send|read)_timeout[[:space:]]+[0-9]+s;/) {
         next
       }
 
       print line
 
-      if (in_api && line ~ /proxy_set_header[[:space:]]+X-Forwarded-For[[:space:]]+/ && injected == 0) {
+      if ((in_api || in_bus) && line ~ /proxy_set_header[[:space:]]+X-Forwarded-For[[:space:]]+/ && injected == 0) {
         print "        proxy_connect_timeout 10s;"
         print "        proxy_send_timeout 650s;"
         print "        proxy_read_timeout 650s;"
         injected = 1
       }
 
-      if (in_api && line ~ /^[[:space:]]*}/) {
+      if ((in_api || in_bus) && line ~ /^[[:space:]]*}/) {
         in_api = 0
+        in_bus = 0
         injected = 0
+      }
+    }
+  ' "$nginx_conf" > "$tmp_file"
+
+  mv "$tmp_file" "$nginx_conf"
+}
+
+ensure_bus_location() {
+  local nginx_conf="$1"
+  [[ -f "$nginx_conf" ]] || return 0
+
+  # Проверяем, есть ли уже location /bus/
+  if grep -q "location /bus/" "$nginx_conf"; then
+    return 0
+  fi
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk '
+    {
+      print $0
+      if ($0 ~ /^[[:space:]]*location[[:space:]]+\/api\//) {
+        found_api = 1
+      }
+      if (found_api && $0 ~ /^[[:space:]]*\}/) {
+        print ""
+        print "    location /bus/ {"
+        print "        proxy_pass http://backend:3000/bus/;"
+        print "        proxy_set_header Host $http_host;"
+        print "        proxy_set_header X-Real-IP $remote_addr;"
+        print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+        print "        proxy_connect_timeout 10s;"
+        print "        proxy_send_timeout 650s;"
+        print "        proxy_read_timeout 650s;"
+        print "    }"
+        found_api = 0
       }
     }
   ' "$nginx_conf" > "$tmp_file"
@@ -312,6 +357,7 @@ services:
 EOF
 
 ensure_nginx_api_timeouts "$PROJECT_DIR/client/nginx-client.conf"
+ensure_bus_location "$PROJECT_DIR/client/nginx-client.conf"
 
 log "Сборка custom-образов backend/frontend"
 cd "$PROJECT_DIR"
