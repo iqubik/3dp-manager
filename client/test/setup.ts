@@ -24,6 +24,8 @@ beforeAll(() => {
       message.includes('[Settings]') ||
       message.includes('[API]') ||
       message.includes('[Login]') ||
+      message.includes('[AuthContext]') ||
+      message.includes('[AxiosInterceptor]') ||
       message.includes('[Rotation]') ||
       message.includes('[Domains]') ||
       message.includes('[Subs]') ||
@@ -40,6 +42,8 @@ beforeAll(() => {
     if (
       message.includes('[Tunnels]') ||
       message.includes('[Settings]') ||
+      message.includes('[AuthContext]') ||
+      message.includes('[AxiosInterceptor]') ||
       message.includes('[Domains]') ||
       message.includes('[Subs]') ||
       message.includes('[Scanner]')
@@ -56,8 +60,11 @@ beforeAll(() => {
     if (
       message.includes('act(...)') ||
       message.includes('An update to') ||
+      message.includes('Not implemented: navigation to another Document') ||
       message.includes('[Login]') ||
       message.includes('[Settings]') ||
+      message.includes('[AuthContext]') ||
+      message.includes('[AxiosInterceptor]') ||
       message.includes('[Subs]')
     ) {
       return

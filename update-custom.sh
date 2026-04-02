@@ -111,6 +111,9 @@ POSTGRES_DB=3dp_manager
 JWT_SECRET=${jwt_secret}
 ADMIN_LOGIN=${admin_login}
 ADMIN_PASSWORD=${admin_pass}
+PORT=3100
+LOG_LEVEL=error
+ALLOWED_ORIGINS=
 EOF
     
     log "Сгенерированы новые учётные данные:"
@@ -172,7 +175,7 @@ EOF
       # Сохраняем существующие значения, которые не нужно менять
       local existing_postgres_user
       existing_postgres_user=$(grep -E "^POSTGRES_USER=" "$env_file" 2>/dev/null | cut -d'=' -f2 || echo "admin")
-      
+
       # Создаём новый .env файл
       cat > "$env_file" <<EOF
 POSTGRES_USER=${existing_postgres_user:-admin}
@@ -181,6 +184,9 @@ POSTGRES_DB=3dp_manager
 JWT_SECRET=${new_jwt_secret}
 ADMIN_LOGIN=${new_admin_login}
 ADMIN_PASSWORD=${new_admin_pass}
+PORT=3100
+LOG_LEVEL=error
+ALLOWED_ORIGINS=
 EOF
       
       log "Сгенерированы новые учётные данные:"

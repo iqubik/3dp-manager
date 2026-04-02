@@ -30,13 +30,9 @@ export class AuthService {
       where: { key: 'admin_password' },
     });
 
-    if (!dbLogin) {
-      this.logger.error('Пользователь admin_login не найден в базе данных!');
-      return null;
-    }
-
-    if (!dbPass) {
-      this.logger.error('Пароль admin_password не найден в базе данных!');
+    // Проверяем наличие учётных данных (без деталей для безопасности)
+    if (!dbLogin || !dbPass) {
+      this.logger.error('Учётные данные не найдены в базе данных');
       return null;
     }
 
@@ -55,6 +51,7 @@ export class AuthService {
 
   login(user: { login: string }) {
     const payload = { username: user.login };
+    this.logger.debug(`Генерация access token для пользователя: ${user.login}`);
     return {
       access_token: this.jwtService.sign(payload),
     };

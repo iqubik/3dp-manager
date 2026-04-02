@@ -7,7 +7,7 @@
 | Сервис | Порт | Доступ |
 |--------|------|--------|
 | **frontend** | `http://localhost:8080` | ✅ Доступен из браузера |
-| **backend API** | `http://localhost:3100/api` | ❌ Скрыт внутри Docker network |
+| **backend API** | `http://backend:3100/api` | ❌ Скрыт внутри Docker network |
 | **postgres** | `5432/tcp` | ❌ Скрыт внутри Docker network |
 
 > 🔒 **Безопасность:** Backend и PostgreSQL не проброшены наружу — доступны только внутри Docker network.
@@ -44,13 +44,13 @@ docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
 docker compose -f docker-compose.local.yml --env-file .env.local restart frontend
 
 # Только backend (без пересборки)
-docker compose -f docker-compose.local.yml --env-file .env.local restart server
+docker compose -f docker-compose.local.yml --env-file .env.local restart backend
 
 # Frontend с пересборкой
 docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps frontend
 
 # Backend с пересборкой
-docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps server
+docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps backend
 ```
 
 ### Статус контейнеров
@@ -61,13 +61,13 @@ docker compose -f docker-compose.local.yml --env-file .env.local ps
 ### Просмотр логов
 ```powershell
 # Backend логи
-docker compose -f docker-compose.local.yml --env-file .env.local logs -f server
+docker compose -f docker-compose.local.yml --env-file .env.local logs -f backend
 
 # Frontend логи
 docker compose -f docker-compose.local.yml --env-file .env.local logs -f frontend
 
 # Последние 50 строк
-docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 50 server
+docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 50 backend
 ```
 
 ### Остановка
@@ -82,13 +82,13 @@ docker compose -f docker-compose.local.yml --env-file .env.local down -v
 ## Быстрые проверки
 ```powershell
 # Проверка frontend (должен вернуть 200)
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080
+curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:8080
 
-# Проверка backend API (должен вернуть 401 без токена)
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/api
+# Проверка backend API через frontend-proxy (должен вернуть 401 без токена)
+curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/settings
 
 # Проверка login endpoint
-curl -s -X POST http://localhost:3100/api/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}'
+curl --noproxy "*" -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"login":"admin","password":"admin"}'
 ```
 
 ## Тесты и линтинг
@@ -139,7 +139,7 @@ npm run test:cov
 ## Быстрые проверки
 ```powershell
 Invoke-WebRequest -UseBasicParsing http://localhost:8080
-Invoke-WebRequest -UseBasicParsing http://localhost:3100/api
+Invoke-WebRequest -UseBasicParsing http://localhost:8080/api/settings
 ```
 
 ## Остановка
@@ -155,11 +155,11 @@ docker compose -f docker-compose.local.yml down
 docker compose -f docker-compose.local.yml --env-file .env.local ps
 
 # Проверить логи на наличие ошибок
-docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 100 server
+docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 100 backend
 docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 100 frontend
 
 # Быстрый тест API
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/api
+curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/settings
 ```
 
 ### 2. Прогнать тесты
@@ -315,7 +315,8 @@ POSTGRES_DB=3dp_manager
 JWT_SECRET=localDevSecretKey12345678901234567890
 ADMIN_LOGIN=admin
 ADMIN_PASSWORD=admin
-PORT=3000
+PORT=3100
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost
 ```
 
 > ⚠️ **Не коммитьте `.env.local` в репозиторий!** Файл должен быть добавлен в `.gitignore` для безопасности.

@@ -88,6 +88,9 @@ POSTGRES_DB=3dp_manager
 JWT_SECRET=${jwt_secret}
 ADMIN_LOGIN=${admin_login}
 ADMIN_PASSWORD=${admin_pass}
+PORT=3100
+LOG_LEVEL=error
+ALLOWED_ORIGINS=
 EOF
 
     log "Сгенерированы новые учётные данные:"

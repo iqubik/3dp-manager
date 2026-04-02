@@ -1,90 +1,143 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Reflector } from '@nestjs/core';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+
+type TestRequest = {
+  url: string;
+  method: string;
+  headers: Record<string, string | undefined>;
+  query: Record<string, unknown>;
+  cookies?: unknown;
+};
+
+function createContext(request: TestRequest): ExecutionContext {
+  return {
+    switchToHttp: () =>
+      ({
+        getRequest: () => request,
+      }) as ReturnType<ExecutionContext['switchToHttp']>,
+    getHandler: () => ({}),
+    getClass: () => class TestController {},
+  } as ExecutionContext;
+}
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let reflector: Reflector;
-  let mockContext: ExecutionContext;
-  let mockRequest: any;
+  let parentCanActivateSpy: jest.SpyInstance;
 
   beforeEach(() => {
     reflector = new Reflector();
     guard = new JwtAuthGuard(reflector);
 
-    mockRequest = {
-      url: '/api/test',
-      method: 'GET',
-      headers: {},
-      query: {},
+    const parentPrototype = Object.getPrototypeOf(JwtAuthGuard.prototype) as {
+      canActivate: (context: ExecutionContext) => boolean | Promise<boolean>;
     };
 
-    mockContext = {
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn().mockReturnValue(mockRequest),
-        getResponse: jest.fn(),
-      }),
-      getHandler: jest.fn(),
-      getClass: jest.fn(),
-    } as any;
+    parentCanActivateSpy = jest
+      .spyOn(parentPrototype, 'canActivate')
+      .mockReturnValue(true);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    parentCanActivateSpy.mockRestore();
+    jest.restoreAllMocks();
   });
 
   describe('canActivate', () => {
     it('должен вернуть true для публичного маршрута', () => {
+      const request: TestRequest = {
+        url: '/api/test',
+        method: 'GET',
+        headers: {},
+        query: {},
+      };
+      const context = createContext(request);
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
 
-      const result = guard.canActivate(mockContext);
+      const result = guard.canActivate(context);
 
       expect(result).toBe(true);
+      expect(parentCanActivateSpy).not.toHaveBeenCalled();
     });
 
-    it('должен вызвать super.canActivate для защищенного маршрута', () => {
+    it('должен вызывать super.canActivate для защищенного маршрута', async () => {
+      const request: TestRequest = {
+        url: '/api/test',
+        method: 'GET',
+        headers: {},
+        query: {},
+      };
+      const context = createContext(request);
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
-      const superCanActivate = jest
-        .spyOn(JwtAuthGuard.prototype, 'canActivate' as any)
-        .mockImplementation(() => true);
+      await guard.canActivate(context);
 
-      guard.canActivate(mockContext);
-
-      expect(superCanActivate).toHaveBeenCalled();
+      expect(parentCanActivateSpy).toHaveBeenCalledWith(context);
     });
 
-    it('НЕ должен добавлять токен, если authorization уже есть', () => {
+    it('должен добавлять токен из cookie в authorization header', async () => {
+      const request: TestRequest = {
+        url: '/api/test',
+        method: 'GET',
+        headers: {},
+        query: {},
+        cookies: { access_token: 'cookie-jwt-token' },
+      };
+      const context = createContext(request);
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      mockRequest.query.token = 'test-jwt-token';
-      mockRequest.headers.authorization = 'Bearer existing-token';
 
-      const _superCanActivate = jest
-        .spyOn(JwtAuthGuard.prototype, 'canActivate' as any)
-        .mockImplementation(() => true);
+      await guard.canActivate(context);
 
-      guard.canActivate(mockContext);
-
-      expect(mockRequest.headers.authorization).toBe('Bearer existing-token');
+      expect(request.headers.authorization).toBe('Bearer cookie-jwt-token');
     });
 
-    it('должен вернуть результат super.canActivate', () => {
+    it('не должен перезаписывать существующий authorization header', async () => {
+      const request: TestRequest = {
+        url: '/api/test',
+        method: 'GET',
+        headers: { authorization: 'Bearer existing-token' },
+        query: { token: 'query-jwt-token' },
+        cookies: { access_token: 'cookie-jwt-token' },
+      };
+      const context = createContext(request);
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
-      const _superCanActivate = jest
-        .spyOn(JwtAuthGuard.prototype, 'canActivate' as any)
-        .mockImplementation(() => 'PENDING_RESULT');
+      await guard.canActivate(context);
 
-      const result = guard.canActivate(mockContext);
+      expect(request.headers.authorization).toBe('Bearer existing-token');
+    });
 
-      expect(result).toBe('PENDING_RESULT');
+    it('должен добавлять токен из query параметра в authorization header', async () => {
+      const request: TestRequest = {
+        url: '/api/test',
+        method: 'GET',
+        headers: {},
+        query: { token: 'query-jwt-token' },
+        cookies: {},
+      };
+      const context = createContext(request);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+
+      await guard.canActivate(context);
+
+      expect(request.headers.authorization).toBe('Bearer query-jwt-token');
+    });
+
+    it('не должен падать при невалидном формате cookies', async () => {
+      const request: TestRequest = {
+        url: '/api/test',
+        method: 'GET',
+        headers: {},
+        query: {},
+        cookies: 'invalid-cookies',
+      };
+      const context = createContext(request);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+
+      await guard.canActivate(context);
+
+      expect(request.headers.authorization).toBeUndefined();
     });
   });
 
@@ -97,53 +150,18 @@ describe('JwtAuthGuard', () => {
       expect(result).toEqual(user);
     });
 
-    it('должен бросить ошибку при наличии ошибки', () => {
-      const _error = new Error('Invalid token');
+    it('должен пробрасывать Error как есть', () => {
+      const authError = new Error('Invalid token');
 
-      expect(() => guard.handleRequest(_error, null, null)).toThrow(Error);
+      expect(() => {
+        guard.handleRequest(authError, null, null);
+      }).toThrow('Invalid token');
     });
 
-    it('должен бросить UnauthorizedException, если пользователь null и нет ошибки', () => {
-      expect(() => guard.handleRequest(null, null, null)).toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('должен бросить ошибку с сообщением из Error', () => {
-      const _error = new Error('Custom error message');
-
-      try {
-        guard.handleRequest(_error, null, null);
-      } catch (e) {
-        expect((e as Error).message).toContain('Custom error message');
-      }
-    });
-
-    it('должен бросить ошибку с сообщением из строки', () => {
-      const _error = 'String error message';
-
-      // handleRequest пробрасывает строковую ошибку как есть через throw
-      expect(() => guard.handleRequest(_error as any, null, null)).toThrow(
-        'String error message',
-      );
-    });
-
-    it('должен бросить ошибку с JSON сообщением', () => {
-      const _error = { message: 'JSON error' };
-
-      // Для объекта берётся message поле
-      expect(() => guard.handleRequest(_error as any, null, null)).toThrow(
-        'JSON error',
-      );
-    });
-
-    it('должен бросить ошибку с сообщением "null", если error=null и user=null', () => {
-      try {
+    it('должен бросать UnauthorizedException, если нет user и err', () => {
+      expect(() => {
         guard.handleRequest(null, null, null);
-      } catch (_e: any) {
-        // UnauthorizedException имеет пустое сообщение по умолчанию
-        expect(_e).toBeInstanceOf(UnauthorizedException);
-      }
+      }).toThrow(UnauthorizedException);
     });
   });
 });

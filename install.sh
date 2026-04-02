@@ -246,6 +246,16 @@ DB_PASS=$(openssl rand -base64 12)
 JWT_SECRET=$(openssl rand -base64 32)
 ADMIN_USER=$(openssl rand -base64 8)
 ADMIN_PASS=$(openssl rand -base64 12)
+# Определяем ALLOWED_ORIGINS из домена или IP
+if [[ -n "${UI_HOST:-}" ]]; then
+    if [[ "$UI_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        ALLOWED_ORIGINS="http://${UI_HOST}"
+    else
+        ALLOWED_ORIGINS="https://${UI_HOST}"
+    fi
+else
+    ALLOWED_ORIGINS=""
+fi
 log "Сгенерированы секретные ключи для БД и JWT."
 
 #################################
@@ -334,6 +344,9 @@ DB_PASSWORD=${DB_PASS}
 DB_NAME=3dp_manager
 ADMIN_LOGIN=${ADMIN_USER}
 ADMIN_PASSWORD=${ADMIN_PASS}
+PORT=3100
+LOG_LEVEL=error
+ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
 EOF
 
 if [[ "$USE_SSL" == "true" ]]; then
