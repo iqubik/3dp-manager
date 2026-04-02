@@ -61,26 +61,25 @@ check_containers_running() {
 
 check_and_fix_credentials() {
   log "Проверка учётных данных на безопасность..."
-  
+
   local env_file=".env"
-  local compose_file="docker-compose.yml"
   local credentials_changed=0
-  
+
   # Проверяем, существует ли .env файл
   if [[ ! -f "$env_file" ]]; then
     log "Создание .env файла с безопасными учётными данными..."
-    
+
     # Генерируем случайные пароли
     local db_pass
     local jwt_secret
     local admin_login
     local admin_pass
-    
+
     db_pass=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
     jwt_secret=$(openssl rand -base64 32)
     admin_login=$(openssl rand -base64 8 | tr -dc 'A-Za-z0-9' | cut -c1-8)
     admin_pass=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
-    
+
     # Создаём .env файл
     cat > "$env_file" <<EOF
 POSTGRES_USER=admin
@@ -90,14 +89,14 @@ JWT_SECRET=${jwt_secret}
 ADMIN_LOGIN=${admin_login}
 ADMIN_PASSWORD=${admin_pass}
 EOF
-    
+
     log "Сгенерированы новые учётные данные:"
     log "  ADMIN_LOGIN: ${admin_login}"
     log "  ADMIN_PASSWORD: ${admin_pass}"
     log "  POSTGRES_PASSWORD: ${db_pass}"
     log "  JWT_SECRET: ${jwt_secret}"
     log "⚠️ Сохраните эти данные в безопасном месте!"
-    
+
     credentials_changed=1
   else
     # Проверяем, не используются ли дефолтные значения
@@ -105,52 +104,52 @@ EOF
     local admin_pass_val
     local jwt_secret_val
     local db_pass_val
-    
+
     admin_login_val=$(grep -E "^ADMIN_LOGIN=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
     admin_pass_val=$(grep -E "^ADMIN_PASSWORD=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
     jwt_secret_val=$(grep -E "^JWT_SECRET=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
     db_pass_val=$(grep -E "^POSTGRES_PASSWORD=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
-    
+
     local needs_update=0
-    
+
     if [[ "$admin_login_val" == "admin" ]] || [[ -z "$admin_login_val" ]]; then
       warn "Обнаружен дефолтный ADMIN_LOGIN=admin"
       needs_update=1
     fi
-    
+
     if [[ "$admin_pass_val" == "admin" ]] || [[ -z "$admin_pass_val" ]]; then
       warn "Обнаружен дефолтный ADMIN_PASSWORD=admin"
       needs_update=1
     fi
-    
+
     if [[ "$jwt_secret_val" == "secretKey" ]] || [[ -z "$jwt_secret_val" ]]; then
       warn "Обнаружен дефолтный JWT_SECRET=secretKey"
       needs_update=1
     fi
-    
+
     if [[ "$db_pass_val" == "admin" ]] || [[ -z "$db_pass_val" ]]; then
       warn "Обнаружен дефолтный POSTGRES_PASSWORD=admin"
       needs_update=1
     fi
-    
+
     if [[ $needs_update -eq 1 ]]; then
       log "Генерация новых безопасных учётных данных..."
-      
+
       # Генерируем новые пароли
       local new_db_pass
       local new_jwt_secret
       local new_admin_login
       local new_admin_pass
-      
+
       new_db_pass=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
       new_jwt_secret=$(openssl rand -base64 32)
       new_admin_login=$(openssl rand -base64 8 | tr -dc 'A-Za-z0-9' | cut -c1-8)
       new_admin_pass=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
-      
+
       # Сохраняем существующие значения, которые не нужно менять
       local existing_postgres_user
       existing_postgres_user=$(grep -E "^POSTGRES_USER=" "$env_file" 2>/dev/null | cut -d'=' -f2 || echo "admin")
-      
+
       # Создаём новый .env файл
       cat > "$env_file" <<EOF
 POSTGRES_USER=${existing_postgres_user:-admin}
@@ -160,21 +159,106 @@ JWT_SECRET=${new_jwt_secret}
 ADMIN_LOGIN=${new_admin_login}
 ADMIN_PASSWORD=${new_admin_pass}
 EOF
-      
+
       log "Сгенерированы новые учётные данные:"
       log "  ADMIN_LOGIN: ${new_admin_login}"
       log "  ADMIN_PASSWORD: ${new_admin_pass}"
       log "  POSTGRES_PASSWORD: ${new_db_pass}"
       log "  JWT_SECRET: ${new_jwt_secret}"
       log "⚠️ Сохраните эти данные в безопасном месте!"
-      
+
       credentials_changed=1
     else
       log "Учётные данные безопасны ✅"
     fi
   fi
-  
+
   return $credentials_changed
+}
+
+ensure_nginx_api_timeouts() {
+  local nginx_conf="$1"
+  [[ -f "$nginx_conf" ]] || return 0
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk '
+    BEGIN { in_api = 0; in_bus = 0; injected = 0 }
+    {
+      line = $0
+
+      if (line ~ /^[[:space:]]*location[[:space:]]+\/api\/[[:space:]]*\{/) {
+        in_api = 1
+        in_bus = 0
+        injected = 0
+      }
+
+      if (line ~ /^[[:space:]]*location[[:space:]]+\/bus\/[[:space:]]*\{/) {
+        in_bus = 1
+        in_api = 0
+        injected = 0
+      }
+
+      if ((in_api || in_bus) && line ~ /proxy_(connect|send|read)_timeout[[:space:]]+[0-9]+s;/) {
+        next
+      }
+
+      print line
+
+      if ((in_api || in_bus) && line ~ /proxy_set_header[[:space:]]+X-Forwarded-For[[:space:]]+/ && injected == 0) {
+        print "        proxy_connect_timeout 10s;"
+        print "        proxy_send_timeout 650s;"
+        print "        proxy_read_timeout 650s;"
+        injected = 1
+      }
+
+      if ((in_api || in_bus) && line ~ /^[[:space:]]*}/) {
+        in_api = 0
+        in_bus = 0
+        injected = 0
+      }
+    }
+  ' "$nginx_conf" > "$tmp_file"
+
+  mv "$tmp_file" "$nginx_conf"
+}
+
+ensure_bus_location() {
+  local nginx_conf="$1"
+  [[ -f "$nginx_conf" ]] || return 0
+
+  # Проверяем, есть ли уже location /bus/
+  if grep -q "location /bus/" "$nginx_conf"; then
+    return 0
+  fi
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk '
+    {
+      print $0
+      if ($0 ~ /^[[:space:]]*location[[:space:]]+\/api\//) {
+        found_api = 1
+      }
+      if (found_api && $0 ~ /^[[:space:]]*\}/) {
+        print ""
+        print "    location /bus/ {"
+        print "        proxy_pass http://backend:3000/bus/;"
+        print "        proxy_set_header Host $http_host;"
+        print "        proxy_set_header X-Real-IP $remote_addr;"
+        print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+        print "        proxy_connect_timeout 10s;"
+        print "        proxy_send_timeout 650s;"
+        print "        proxy_read_timeout 650s;"
+        print "    }"
+        found_api = 0
+      }
+    }
+  ' "$nginx_conf" > "$tmp_file"
+
+  mv "$tmp_file" "$nginx_conf"
 }
 
 need_root() {
@@ -210,6 +294,12 @@ log "Compose команда: ${COMPOSE_CMD[*]}"
 check_and_fix_credentials || true
 
 #################################
+# FIX NGINX CONFIG
+#################################
+ensure_nginx_api_timeouts "$PROJECT_DIR/client/nginx-client.conf"
+ensure_bus_location "$PROJECT_DIR/client/nginx-client.conf"
+
+#################################
 # REBUILD BACKEND
 #################################
 log "Скачивание последних версий Docker-образов..."
@@ -221,6 +311,9 @@ fi
 
 log "Пересоздание контейнеров..."
 "${COMPOSE_CMD[@]}" up -d
+
+# Перезапуск frontend для применения nginx.conf
+"${COMPOSE_CMD[@]}" restart frontend
 
 # Проверка: все ли контейнеры запустились
 if ! check_containers_running 60; then
