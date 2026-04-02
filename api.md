@@ -1,7 +1,7 @@
 # API документация 3dp-manager
 
 **Версия API:** v1  
-**Базовый URL:** `http://<host>:3000/api`  
+**Базовый URL:** `http://<host>:3100/api`  
 **Префикс:** Все endpoints начинаются с `/api`, кроме публичных подписок (`/bus/:uuid`)
 
 ---
@@ -758,7 +758,7 @@ GET /bus/abc-123-def/1
 
 ```javascript
 // Логин
-const loginResponse = await fetch('http://localhost:3000/api/auth/login', {
+const loginResponse = await fetch('http://localhost:3100/api/auth/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ login: 'admin', password: 'admin' })
@@ -766,13 +766,13 @@ const loginResponse = await fetch('http://localhost:3000/api/auth/login', {
 const { access_token } = await loginResponse.json();
 
 // Получить все подписки
-const subsResponse = await fetch('http://localhost:3000/api/subscriptions', {
+const subsResponse = await fetch('http://localhost:3100/api/subscriptions', {
   headers: { 'Authorization': `Bearer ${access_token}` }
 });
 const subscriptions = await subsResponse.json();
 
 // Создать подписку
-const createResponse = await fetch('http://localhost:3000/api/subscriptions', {
+const createResponse = await fetch('http://localhost:3100/api/subscriptions', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -795,7 +795,7 @@ const subscription = await createResponse.json();
 import requests
 
 # Логин
-response = requests.post('http://localhost:3000/api/auth/login', json={
+response = requests.post('http://localhost:3100/api/auth/login', json={
     'login': 'admin',
     'password': 'admin'
 })
@@ -803,11 +803,11 @@ token = response.json()['access_token']
 
 # Получить все домены
 headers = {'Authorization': f'Bearer {token}'}
-response = requests.get('http://localhost:3000/api/domains/all', headers=headers)
+response = requests.get('http://localhost:3100/api/domains/all', headers=headers)
 domains = response.json()
 
 # Запустить сканирование
-response = requests.post('http://localhost:3000/api/domains/scan/start', 
+response = requests.post('http://localhost:3100/api/domains/scan/start', 
     headers=headers,
     json={
         'addr': '192.168.1.1',
@@ -822,16 +822,16 @@ response = requests.post('http://localhost:3000/api/domains/scan/start',
 
 ```bash
 # Логин
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST http://localhost:3100/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"login":"admin","password":"admin"}'
 
 # Получить подписку (Base64)
-curl http://localhost:3000/bus/abc-123-def
+curl http://localhost:3100/bus/abc-123-def
 
 # Получить подписку (HTML с QR)
 curl -H "User-Agent: Mozilla/5.0" \
-  http://localhost:3000/bus/abc-123-def
+  http://localhost:3100/bus/abc-123-def
 ```
 
 ---
@@ -847,7 +847,7 @@ http://<host>:<port>/bus/<uuid>
 
 Пример для v2rayN, Clash, Surge:
 ```
-http://192.168.1.100:3000/bus/abc-123-def
+http://192.168.1.100:3100/bus/abc-123-def
 ```
 
 ### QR-код
