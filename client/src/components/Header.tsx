@@ -12,6 +12,7 @@ import { useThemeContext } from '../ThemeContext';
 import { useAuth } from '../auth/AuthContext';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { APP_VERSION } from '../utils/version';
+import { Logger } from '../utils/logger';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -27,11 +28,14 @@ export default function Header({ onMenuClick, isMobile }: HeaderProps) {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', onConfirm: () => {} });
 
   const handleLogout = () => {
+    Logger.debug('Opening logout confirmation dialog', 'Header');
     setConfirmDialog({
       open: true,
       title: 'Вы действительно хотите выйти?',
-      onConfirm: () => {
-        logout();
+      onConfirm: async () => {
+        Logger.debug('Logout confirmed by user', 'Header');
+        await logout();
+        Logger.debug('logout() resolved in Header', 'Header');
         navigate('/login');
       }
     });
@@ -154,11 +158,25 @@ export default function Header({ onMenuClick, isMobile }: HeaderProps) {
           <Typography>{confirmDialog.title}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}>Отмена</Button>
           <Button
             onClick={() => {
-              confirmDialog.onConfirm();
+              Logger.debug('Logout canceled by user', 'Header');
               setConfirmDialog({ ...confirmDialog, open: false });
+            }}
+          >
+            Отмена
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                await confirmDialog.onConfirm();
+              } catch (error) {
+                Logger.error('Logout confirmation action failed', 'Header', {
+                  message: error instanceof Error ? error.message : 'unknown error',
+                });
+              } finally {
+                setConfirmDialog({ ...confirmDialog, open: false });
+              }
             }}
             variant="contained"
             color="error"

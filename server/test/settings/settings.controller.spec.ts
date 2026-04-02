@@ -50,7 +50,7 @@ describe('SettingsController', () => {
   describe('findAll', () => {
     it('должен вернуть все настройки как объект', async () => {
       const mockSettings = [
-        { key: 'xui_url', value: 'http://localhost:3000' },
+        { key: 'xui_url', value: 'http://localhost:3100' },
         { key: 'xui_login', value: 'admin' },
         { key: 'xui_password', value: 'password' },
       ];
@@ -60,7 +60,7 @@ describe('SettingsController', () => {
       const result = await controller.findAll();
 
       expect(result).toEqual({
-        xui_url: 'http://localhost:3000',
+        xui_url: 'http://localhost:3100',
         xui_login: 'admin',
         xui_password: 'password',
       });
@@ -79,7 +79,7 @@ describe('SettingsController', () => {
   describe('checkConnection', () => {
     it('должен проверить подключение к 3x-ui', async () => {
       const body = {
-        xui_url: 'http://localhost:3000',
+        xui_url: 'http://localhost:3100',
         xui_login: 'admin',
         xui_password: 'password',
       };
@@ -98,7 +98,7 @@ describe('SettingsController', () => {
 
     it('должен вернуть false при неудачном подключении', async () => {
       const body = {
-        xui_url: 'http://localhost:3000',
+        xui_url: 'http://localhost:3100',
         xui_login: 'admin',
         xui_password: 'wrong',
       };

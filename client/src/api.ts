@@ -3,6 +3,7 @@ import { Logger } from './utils/logger';
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true, // Отправлять cookies
 });
 
 // Interceptor для добавления токена к каждому запросу

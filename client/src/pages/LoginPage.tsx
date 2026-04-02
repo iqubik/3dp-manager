@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { Logger } from '../utils/logger';
-import { getApiErrorMessage } from '../utils/errorHandlers';
+import { getApiErrorMessage, getApiErrorStatus } from '../utils/errorHandlers';
 import { APP_VERSION } from '../utils/version';
 
 export default function LoginPage() {
@@ -15,7 +15,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    Logger.debug(`Form submit → POST /api/auth/login`, 'Login', { login: creds.login });
+    Logger.debug(`Form submit → POST /api/auth/login`, 'Login', {
+      login: creds.login,
+      hasPassword: Boolean(creds.password),
+    });
     try {
       const res = await api.post('/auth/login', creds);
 
@@ -23,11 +26,27 @@ export default function LoginPage() {
       Logger.debug(`Success → token received, calling login()`, 'Login');
       login(token);
 
+      Logger.debug('Navigating to / after successful login', 'Login');
       navigate('/');
-    } catch (error) {
+    } catch (error: unknown) {
+      const status = getApiErrorStatus(error);
       const message = getApiErrorMessage(error, 'Неверный логин или пароль');
-      Logger.error(`Error: ${message}`, 'Login');
-      setError('Неверный логин или пароль');
+
+      // Rate limit error
+      if (status === 429) {
+        Logger.warn('Too many login attempts. Please try again later.', 'Login', {
+          status,
+          message,
+        });
+        setError('Слишком много попыток входа. Попробуйте позже.');
+      } else {
+        const logMethod = status === 401 ? Logger.warn : Logger.error;
+        logMethod('Login failed', 'Login', {
+          status: status ?? 'unknown',
+          message,
+        });
+        setError('Неверный логин или пароль');
+      }
     }
   };
 

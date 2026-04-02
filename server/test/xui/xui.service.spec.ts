@@ -70,7 +70,7 @@ describe('XuiService', () => {
 
     it('должен вернуть true при успешном логине', async () => {
       mockSettingsRepo.find.mockResolvedValue([
-        { key: 'xui_url', value: 'http://localhost:3000' },
+        { key: 'xui_url', value: 'http://localhost:3100' },
         { key: 'xui_login', value: 'admin' },
         { key: 'xui_password', value: 'password' },
       ]);
@@ -92,7 +92,7 @@ describe('XuiService', () => {
 
     it('должен вернуть false при ошибке логина', async () => {
       mockSettingsRepo.find.mockResolvedValue([
-        { key: 'xui_url', value: 'http://localhost:3000' },
+        { key: 'xui_url', value: 'http://localhost:3100' },
         { key: 'xui_login', value: 'admin' },
         { key: 'xui_password', value: 'password' },
       ]);
@@ -106,7 +106,7 @@ describe('XuiService', () => {
 
     it('должен вернуть false, если нет cookie в ответе', async () => {
       mockSettingsRepo.find.mockResolvedValue([
-        { key: 'xui_url', value: 'http://localhost:3000' },
+        { key: 'xui_url', value: 'http://localhost:3100' },
         { key: 'xui_login', value: 'admin' },
         { key: 'xui_password', value: 'password' },
       ]);
@@ -126,7 +126,7 @@ describe('XuiService', () => {
       mockAxiosInstance.post.mockRejectedValue(new Error('Connection failed'));
 
       const result = await service.checkConnection(
-        'http://localhost:3000',
+        'http://localhost:3100',
         'admin',
         'password',
       );
