@@ -19,6 +19,69 @@ NC='\033[0m'
 log() { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+die() { error "$1"; }
+
+resolve_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker" "compose")
+        return 0
+    fi
+
+    if command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker-compose")
+        return 0
+    fi
+
+    warn "Не найден Docker Compose (ни v2 plugin, ни v1 binary). Пытаемся установить..."
+    apt-get update
+    apt-get install -y docker-compose-plugin || true
+
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker" "compose")
+        return 0
+    fi
+
+    apt-get install -y docker-compose || true
+    if command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD=("docker-compose")
+        return 0
+    fi
+
+    die "Не удалось установить Docker Compose. Установите docker compose plugin (v2) или docker-compose (v1)."
+}
+
+check_containers_running() {
+    log "Проверка статуса контейнеров..."
+    local timeout=${1:-60}
+    local elapsed=0
+    local failed=0
+
+    while [ $elapsed -lt $timeout ]; do
+        failed=0
+        # Получаем статус всех контейнеров текущего compose проекта
+        # Формат: NAME\tSTATUS (например: "3dp-postgres\tUp 2 days" или "3dp-postgres\tError")
+        while IFS=$'\t' read -r container_name status; do
+            if [ -n "$container_name" ] && [ -n "$status" ]; then
+                # Проверяем, что статус содержит Up/running/healthy/restarting
+                # Up, Up 2 days, Up Less than a second, (healthy), running, restarting
+                if ! echo "$status" | grep -qiE "^up|running|healthy|restarting"; then
+                    failed=1
+                    warn "Контейнер $container_name в статусе: $status"
+                fi
+            fi
+        done < <("${COMPOSE_CMD[@]}" ps --format "table {{.Name}}\t{{.Status}}" --all 2>/dev/null | tail -n +2)
+
+        if [ $failed -eq 0 ]; then
+            log "Все контейнеры запущены успешно"
+            return 0
+        fi
+
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+
+    return 1
+}
 
 #################################
 # ASCII-баннер
@@ -101,6 +164,9 @@ EOF
     systemctl start docker
 fi
 
+resolve_compose_cmd
+log "Compose команда: ${COMPOSE_CMD[*]}"
+
 #################################
 # ЗАГРУЗКА ПРОЕКТА
 #################################
@@ -180,7 +246,33 @@ DB_PASS=$(openssl rand -base64 12)
 JWT_SECRET=$(openssl rand -base64 32)
 ADMIN_USER=$(openssl rand -base64 8)
 ADMIN_PASS=$(openssl rand -base64 12)
+# Определяем ALLOWED_ORIGINS из домена или IP
+if [[ -n "${UI_HOST:-}" ]]; then
+    if [[ "$UI_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        ALLOWED_ORIGINS="http://${UI_HOST}"
+    else
+        ALLOWED_ORIGINS="https://${UI_HOST}"
+    fi
+else
+    ALLOWED_ORIGINS=""
+fi
 log "Сгенерированы секретные ключи для БД и JWT."
+
+#################################
+# ЛОГИРОВАНИЕ УЧЁТНЫХ ДАННЫХ
+#################################
+echo ""
+echo "==================================================="
+echo "        УЧЁТНЫЕ ДАННЫЕ АДМИНИСТРАТОРА"
+echo "==================================================="
+echo "  ADMIN_LOGIN: ${ADMIN_USER}"
+echo "  ADMIN_PASSWORD: ${ADMIN_PASS}"
+echo "  POSTGRES_PASSWORD: ${DB_PASS}"
+echo "  JWT_SECRET: ${JWT_SECRET}"
+echo ""
+echo "  ⚠️  СОХРАНИТЕ ЭТИ ДАННЫЕ В БЕЗОПАСНОМ МЕСТЕ!"
+echo "==================================================="
+echo ""
 
 #################################
 # Hysteria 2
@@ -252,6 +344,9 @@ DB_PASSWORD=${DB_PASS}
 DB_NAME=3dp_manager
 ADMIN_LOGIN=${ADMIN_USER}
 ADMIN_PASSWORD=${ADMIN_PASS}
+PORT=3100
+LOG_LEVEL=error
+ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
 EOF
 
 if [[ "$USE_SSL" == "true" ]]; then
@@ -273,14 +368,26 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
     location /api/ {
-        proxy_pass http://backend:3000/api/;
+        proxy_pass http://backend:3100/api/;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
+    }
+    location /bus/ {
+        proxy_pass http://backend:3100/bus/;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
     }
 }
 server {
-    listen 3000 ssl;
+    listen 3100 ssl;
     server_name $UI_HOST;
     client_max_body_size 50M;
 
@@ -288,7 +395,7 @@ server {
     ssl_certificate_key /etc/nginx/certs/privkey.pem;
 
     location / {
-        proxy_pass http://backend:3000/;
+        proxy_pass http://backend:3100/;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -334,7 +441,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_LOGIN: ${ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASS}
-      PORT: 3000
+      PORT: 3100
     volumes:
       - /etc/hysteria/config.yaml:/etc/hysteria/config.yaml:ro
     networks:
@@ -348,7 +455,7 @@ services:
       - backend
     ports:
       - "${FINAL_PORT}:443"
-      - "3000:3000"
+      - "3100:3100"
     volumes:
       - ./client/nginx-client.conf:/etc/nginx/conf.d/default.conf:ro
       - ${CERT_PATH}:/etc/nginx/certs/fullchain.pem:ro
@@ -380,7 +487,7 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
     location /api/ {
-        proxy_pass http://backend:3000/api/;
+        proxy_pass http://backend:3100/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -388,13 +495,29 @@ server {
         proxy_cache_bypass \$http_upgrade;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
+    }
+    location /bus/ {
+        proxy_pass http://backend:3100/bus/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$http_host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 650s;
+        proxy_read_timeout 650s;
     }
 }
 server {
-    listen 3000;
+    listen 3100;
     server_name localhost;
     location / {
-        proxy_pass http://backend:3000/;
+        proxy_pass http://backend:3100/;
         proxy_set_header Host \$http_host;
     }
 }
@@ -437,7 +560,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_LOGIN: ${ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASS}
-      PORT: 3000
+      PORT: 3100
     volumes:
       - /etc/hysteria/config.yaml:/etc/hysteria/config.yaml:ro
     networks:
@@ -451,7 +574,7 @@ services:
       - backend
     ports:
       - "${FINAL_PORT}:80"
-      - "3000:3000"
+      - "3100:3100"
     volumes:
       - ./client/nginx-client.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
@@ -471,10 +594,17 @@ fi
 #################################
 log "Сборка и запуск контейнеров..."
 # Останавливаем старые, если были
-docker compose down || true
+"${COMPOSE_CMD[@]}" down || true
 
 # Запускаем сборку и старт
-docker compose up --build -d --remove-orphans
+"${COMPOSE_CMD[@]}" up --build -d --remove-orphans
+
+# Проверка: все ли контейнеры запустились
+if ! check_containers_running 60; then
+    error "Не удалось запустить контейнеры. Логи:"
+    "${COMPOSE_CMD[@]}" logs --tail=50
+    die "Установка прервана из-за ошибки запуска контейнеров"
+fi
 
 log "Очистка кэша сборки..."
 docker image prune -f
