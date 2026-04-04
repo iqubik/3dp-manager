@@ -226,19 +226,26 @@ git diff --name-only
 ### Custom-установка на VM (с нуля)
 
 ```bash
-# Скачать скрипт и запустить от root
-curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/install-custom.sh -o /tmp/install-custom.sh && sudo bash /tmp/install-custom.sh
+# Скачать скрипт (без кэширования) и запустить от root
+curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/install-custom.sh -o /tmp/install-custom.sh && sudo bash /tmp/install-custom.sh
 ```
 
 **Что делает:**
 - Устанавливает Docker (если нет)
 - Клонирует код из `dp-custom` в `/opt/3dp-manager-src`
 - Спрашивает домен (можно пропустить — будет IP без HTTPS)
+- **Выбор типа SSL:**
+  - `1)` Let's Encrypt автоматически (нужны открытые порты 80/443)
+  - `2)` Self-signed — самоподписанный (для тестов, VMWare)
+  - `3)` Свои сертификаты (указать пути к fullchain.pem / privkey.pem)
+  - `4)` Без SSL — HTTP
 - Генерирует пароли, ставит Hysteria 2
 - Собирает backend/frontend из исходников `dp-custom`
 - Запускает контейнеры
 
 После установки скрипт выведет **ADMIN_LOGIN / ADMIN_PASSWORD** — сохрани!
+
+> 💡 **Для VMWare без домена:** выбери `2)` Self-signed — сгенерируется самоподписанный сертификат на 365 дней. Браузер будет ругаться — «Принять риск» → продолжить.
 
 ### Custom-обновление на VM
 
@@ -252,6 +259,18 @@ curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" https://raw.github
 - `git fetch` + `git merge` последних коммитов из `dp-custom`
 - Пересобирает backend + frontend из обновлённых исходников
 - Перезапускает контейнеры
+
+### Удаление с VM
+
+```bash
+# Удалить 3dp-manager (Hysteria 2 останется)
+curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/delete-custom.sh -o /tmp/delete-custom.sh && sudo bash /tmp/delete-custom.sh
+
+# Полное удаление (включая Hysteria 2)
+curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/delete-custom.sh | bash -s -- -H
+```
+
+> ⚠️ **Важно:** Кэширование также влияет на `delete-custom.sh`. Без `Cache-Control: no-cache` можно получить старую версию.
 
 ### Диагностика на VM
 
@@ -277,6 +296,14 @@ df -h
 # Оперативная память
 free -m
 ```
+
+### Полная проверка хвостов после удаления
+
+```bash
+ssh iqubik@192.168.186.128 "echo '=== Docker контейнеры ===' && sudo docker ps -a --filter 'name=3dp-' && echo '' && echo '=== Docker образы 3dp ===' && sudo docker images --format '{{.Repository}}:{{.Tag}}' | grep -i 3dp || echo 'пусто' && echo '' && echo '=== Директории ===' && ls -d /opt/3dp-manager /opt/3dp-manager-src 2>&1 || true && echo '' && echo '=== Systemd hysteria ===' && systemctl list-unit-files | grep hysteria || echo 'пусто' && echo '' && echo '=== Hysteria бинарник ===' && which hysteria 2>&1 || echo 'не найден' && echo '' && echo '=== Hysteria конфиг ===' && ls -la /etc/hysteria/ 2>&1 || echo 'нет' && echo '' && echo '=== Процессы ===' && ps aux | grep -E '3dp|hysteria|3x-ui' | grep -v grep || echo 'пусто' && echo '' && echo '=== UFW ===' && sudo ufw status numbered 2>/dev/null || echo 'ufw не активен' && echo '' && echo '=== SSL ===' && ls /etc/letsencrypt/live/ 2>/dev/null || echo 'пусто' && echo '' && echo '=== Cron ===' && sudo crontab -l 2>/dev/null || echo 'пусто' && echo '' && echo '=== Диск ===' && df -h /"
+```
+
+Ожидаемый результат после `delete-custom.sh -H`: всё «пусто» / «нет» / «не найден».
 
 ### Снапшоты VMware
 
