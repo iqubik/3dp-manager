@@ -259,16 +259,28 @@ export function generateSubscriptionHtmlWithQr(
 
         function copyLink() {
           const link = document.getElementById('link-text').innerText;
-          navigator.clipboard.writeText(link).then(() => {
-            const btn = document.querySelector('.action-btn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'Скопировано!';
-            btn.style.backgroundColor = 'var(--button-success)';
-            setTimeout(() => {
-              btn.innerHTML = originalText;
-              btn.style.backgroundColor = 'var(--button-bg)';
-            }, 2000);
-          });
+          let copied = false;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(() => { copied = true; });
+          }
+          if (!copied) {
+            const ta = document.createElement('textarea');
+            ta.value = link;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          const btn = document.querySelector('.action-btn');
+          const originalText = btn.innerHTML;
+          btn.innerHTML = 'Скопировано!';
+          btn.style.backgroundColor = 'var(--button-success)';
+          setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.backgroundColor = 'var(--button-bg)';
+          }, 2000);
         }
       </script>
     </body>

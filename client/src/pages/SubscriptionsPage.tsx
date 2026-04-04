@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Delete, Add, Link as LinkIcon, OpenInNew, ContentCopy, Dns, Router, Edit, MoreVert, Remove, Refresh } from '@mui/icons-material';
 import api from '../api';
+import { copyToClipboard } from '../utils/copyToClipboard';
 import { Logger } from '../utils/logger';
 
 interface Subscription {
@@ -345,7 +346,7 @@ export default function SubscriptionsPage() {
   };
 
   const handleCopyLink = async (uuid: string, tunnelId: string | number) => {
-    await navigator.clipboard.writeText(getSubscriptionUrl(uuid, tunnelId));
+    await copyToClipboard(getSubscriptionUrl(uuid, tunnelId));
     setSnackbar({ open: true, type: 'success', message: 'Ссылка на подписку скопирована' });
   };
 
@@ -602,7 +603,7 @@ export default function SubscriptionsPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => navigator.clipboard.writeText(currentLinks.join('\n'))}>Копировать все</Button>
+          <Button onClick={() => copyToClipboard(currentLinks.join('\n'))}>Копировать все</Button>
           <Button onClick={() => setLinksOpen(false)}>Закрыть</Button>
         </DialogActions>
       </Dialog>
