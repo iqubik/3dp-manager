@@ -262,23 +262,90 @@ if [[ "$SKIP_SSL_SETUP" == "false" ]]; then
   LE_KEY="/etc/letsencrypt/live/$UI_HOST/privkey.pem"
 
   if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
-    log "Найдены сертификаты Let's Encrypt."
+    log "Найдены существующие сертификаты Let's Encrypt."
     USE_SSL=true
     CERT_PATH="$LE_CERT"
     KEY_PATH="$LE_KEY"
   else
-    read -rp "Использовать SSL (свои сертификаты)? (y/n): " ssl_ans
-    if [[ "$ssl_ans" =~ ^[Yy]$ ]]; then
-      read -rp "Путь к fullchain.pem: " user_cert
-      read -rp "Путь к privkey.pem: " user_key
-      if [[ -f "$user_cert" && -f "$user_key" ]]; then
-        USE_SSL=true
-        CERT_PATH="$user_cert"
-        KEY_PATH="$user_key"
-      else
-        warn "Файлы сертификатов не найдены. Будет использоваться HTTP."
-      fi
-    fi
+    log "Сертификаты для $UI_HOST не найдены."
+    echo ""
+    echo "Выберите тип SSL:"
+    echo "  1) Получить Let's Encrypt автоматически (нужны открытые порты 80/443)"
+    echo "  2) Сгенерировать самоподписанный сертификат (Self-signed, для тестов)"
+    echo "  3) Использовать свои сертификаты (указать пути)"
+    echo "  4) Пропустить SSL — использовать HTTP"
+    echo ""
+    read -rp "Ваш выбор (1/2/3/4) [4]: " ssl_choice
+
+    case "$ssl_choice" in
+      1)
+        log "Получение Let's Encrypt сертификата..."
+        read -e -p "Email для Let's Encrypt уведомлений: " LE_EMAIL
+        LE_EMAIL=$(echo "$LE_EMAIL" | tr -cd 'a-zA-Z0-9.@_-')
+
+        if command -v certbot &>/dev/null; then
+          log "Certbot уже установлен, получаем сертификат..."
+        else
+          log "Установка certbot..."
+          apt update
+          apt install -y certbot
+        fi
+
+        certbot certonly --standalone \
+          --agree-tos \
+          --non-interactive \
+          --email "$LE_EMAIL" \
+          -d "$UI_HOST" || die "Не удалось получить сертификат Let's Encrypt"
+
+        if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
+          USE_SSL=true
+          CERT_PATH="$LE_CERT"
+          KEY_PATH="$LE_KEY"
+          log "Let's Encrypt сертификат получен для $UI_HOST"
+        else
+          warn "Сертификат не получен. Переключение на HTTP."
+          USE_SSL=false
+        fi
+        ;;
+
+      2)
+        log "Генерация самоподписанного сертификата..."
+        mkdir -p "/etc/letsencrypt/live/$UI_HOST"
+        openssl req -x509 -nodes -days 365 \
+          -newkey rsa:2048 \
+          -keyout "/etc/letsencrypt/live/$UI_HOST/privkey.pem" \
+          -out "/etc/letsencrypt/live/$UI_HOST/fullchain.pem" \
+          -subj "/CN=$UI_HOST" \
+          -addext "subjectAltName=DNS:$UI_HOST" 2>/dev/null
+
+        if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
+          USE_SSL=true
+          CERT_PATH="$LE_CERT"
+          KEY_PATH="$LE_KEY"
+          log "Self-signed сертификат сгенерирован для $UI_HOST"
+          warn "Браузер будет предупреждать о небезопасном соединении — это нормально для тестов."
+        else
+          warn "Не удалось сгенерировать сертификат. Переключение на HTTP."
+          USE_SSL=false
+        fi
+        ;;
+
+      3)
+        read -rp "Путь к fullchain.pem: " user_cert
+        read -rp "Путь к privkey.pem: " user_key
+        if [[ -f "$user_cert" && -f "$user_key" ]]; then
+          USE_SSL=true
+          CERT_PATH="$user_cert"
+          KEY_PATH="$user_key"
+        else
+          warn "Файлы сертификатов не найдены. Будет использоваться HTTP."
+        fi
+        ;;
+
+      *)
+        log "SSL пропущен. Будет использоваться HTTP."
+        ;;
+    esac
   fi
 fi
 
