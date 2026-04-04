@@ -192,6 +192,104 @@ git diff --name-only
 
 Проверяем, что в PR идут только целевые изменения фичи.
 
+## Тестирование на виртуальной машине (VMware)
+
+> VMWare имитирует чистый VPS — Ubuntu 24.04, без Docker, без 3dp-manager.
+> VMware Network: **NAT** (интернет на VM, доступ из хоста по IP VM).
+
+### Подготовка VM
+
+1. **Узнать IP виртуалки:**
+   ```bash
+   hostname -I
+   # или
+   ip addr show | grep "inet " | grep -v 127.0.0.1
+   ```
+
+2. **SSH с хост-машины (Windows):**
+   ```powershell
+   ssh iqubik@192.168.186.128
+   ```
+
+3. **Разрешить sudo без пароля** (нужно для скриптов установки):
+   ```bash
+   # На VM — ввести пароль один раз:
+   echo 'iqubik ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/iqubik-nopasswd
+   ```
+   После этого `sudo` работает без запроса пароля — скрипты могут выполняться автоматически.
+
+4. **Проверка:**
+   ```bash
+   sudo whoami  # должно вывести: root
+   ```
+
+### Custom-установка на VM (с нуля)
+
+```bash
+# Скачать скрипт и запустить от root
+curl -fsSL https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/install-custom.sh -o /tmp/install-custom.sh && sudo bash /tmp/install-custom.sh
+```
+
+**Что делает:**
+- Устанавливает Docker (если нет)
+- Клонирует код из `dp-custom` в `/opt/3dp-manager-src`
+- Спрашивает домен (можно пропустить — будет IP без HTTPS)
+- Генерирует пароли, ставит Hysteria 2
+- Собирает backend/frontend из исходников `dp-custom`
+- Запускает контейнеры
+
+После установки скрипт выведет **ADMIN_LOGIN / ADMIN_PASSWORD** — сохрани!
+
+### Custom-обновление на VM
+
+```bash
+curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" https://raw.githubusercontent.com/iqubik/3dp-manager/dp-custom/update-custom.sh -o /tmp/update-custom.sh && sudo bash /tmp/update-custom.sh
+```
+
+> ⚠️ **Важно:** Заголовки `Cache-Control: no-cache` обязательны — GitHub CDN кэширует raw-файлы до 5 минут. Без них можно получить старую версию скрипта.
+
+**Что делает:**
+- `git fetch` + `git merge` последних коммитов из `dp-custom`
+- Пересобирает backend + frontend из обновлённых исходников
+- Перезапускает контейнеры
+
+### Диагностика на VM
+
+```bash
+# Статус контейнеров
+sudo docker compose -f /opt/3dp-manager/docker-compose.yml ps
+
+# Логи backend
+sudo docker compose -f /opt/3dp-manager/docker-compose.yml logs --tail 50 backend
+
+# Логи frontend
+sudo docker compose -f /opt/3dp-manager/docker-compose.yml logs --tail 50 frontend
+
+# Содержимое .env (пароли)
+sudo cat /opt/3dp-manager/.env
+
+# docker-compose.yml
+sudo cat /opt/3dp-manager/docker-compose.yml
+
+# Дисковое пространство
+df -h
+
+# Оперативная память
+free -m
+```
+
+### Снапшоты VMware
+
+Перед экспериментами — делай снапшот чистой Ubuntu:
+- **VMware → VM → Snapshot → Take Snapshot** (или `Ctrl+Shift+S`)
+- Перед `install-custom.sh` — снапшот "clean"
+- После успешной установки — снапшот "installed"
+- Перед `update-custom.sh` — снапшот "pre-update"
+
+### Откат к снапшоту
+- **VMware → VM → Snapshot → Revert to Snapshot**
+- VM возвращается в сохранённое состояние за секунды
+
 ## Обновление production (кастомная ветка)
 
 > ⚠️ **Важно:** Начиная с версии 2.0.3, скрипты обновления автоматически проверяют и заменяют учётные данные по умолчанию (`admin/admin`) на безопасные. Новые пароли выводятся в лог при обновлении.
