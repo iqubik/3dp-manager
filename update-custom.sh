@@ -224,6 +224,7 @@ ensure_nginx_api_timeouts() {
       print line
 
       if ((in_api || in_bus) && line ~ /proxy_set_header[[:space:]]+X-Forwarded-For[[:space:]]+/ && injected == 0) {
+        print "        proxy_set_header X-Forwarded-Proto $scheme;"
         print "        proxy_connect_timeout 10s;"
         print "        proxy_send_timeout 650s;"
         print "        proxy_read_timeout 650s;"
@@ -266,6 +267,7 @@ ensure_bus_location() {
         print "        proxy_set_header Host $http_host;"
         print "        proxy_set_header X-Real-IP $remote_addr;"
         print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+        print "        proxy_set_header X-Forwarded-Proto $scheme;"
         print "        proxy_connect_timeout 10s;"
         print "        proxy_send_timeout 650s;"
         print "        proxy_read_timeout 650s;"
