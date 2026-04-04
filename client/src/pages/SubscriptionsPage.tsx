@@ -340,6 +340,11 @@ export default function SubscriptionsPage() {
     setLinksOpen(true);
   };
 
+  const handleCopyLink = async (uuid: string, tunnelId: string | number) => {
+    await navigator.clipboard.writeText(getSubscriptionUrl(uuid, tunnelId));
+    setSnackbar({ open: true, type: 'success', message: 'Ссылка на подписку скопирована' });
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
@@ -400,7 +405,7 @@ export default function SubscriptionsPage() {
                     <>
                       <IconButton
                         color="primary"
-                        onClick={() => navigator.clipboard.writeText(getSubscriptionUrl(sub.uuid, selectedServer))}
+                        onClick={() => handleCopyLink(sub.uuid, selectedServer)}
                         title="Копировать ссылку"
                       >
                         <ContentCopy />
@@ -435,7 +440,7 @@ export default function SubscriptionsPage() {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         {isMobile && activeSub && (
-          <MenuItem onClick={() => navigator.clipboard.writeText(getSubscriptionUrl(activeSub.uuid, selectedServer))}>
+          <MenuItem onClick={() => handleCopyLink(activeSub.uuid, selectedServer)}>
             <ListItemIcon><ContentCopy fontSize="small" color="primary" /></ListItemIcon>
             <ListItemText>Копировать ссылку</ListItemText>
           </MenuItem>
