@@ -292,9 +292,9 @@ ADMIN_PASS=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
 
 # ALLOWED_ORIGINS
 if [[ "$UI_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  ALLOWED_ORIGINS="http://${UI_HOST}"
+  ALLOWED_ORIGINS="http://${UI_HOST}:${FINAL_PORT}"
 else
-  ALLOWED_ORIGINS="https://${UI_HOST}"
+  ALLOWED_ORIGINS="https://${UI_HOST}:${FINAL_PORT}"
 fi
 
 log "Сгенерированы секретные ключи для БД и JWT."
