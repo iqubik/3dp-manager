@@ -140,9 +140,17 @@ if [[ $REMOVE_HYSTERIA -eq 1 ]]; then
   # Удаляем systemd unit
   if [[ -f /etc/systemd/system/hysteria-server.service ]]; then
     rm -f /etc/systemd/system/hysteria-server.service
-    systemctl daemon-reload
     log "Unit hysteria-server.service удалён"
   fi
+
+  # Удаляем шаблон unit'а (hysteria-server@.service)
+  if [[ -f /etc/systemd/system/hysteria-server@.service ]]; then
+    rm -f /etc/systemd/system/hysteria-server@.service
+    log "Unit hysteria-server@.service удалён"
+  fi
+
+  # Перезагружаем systemd
+  systemctl daemon-reload
 
   # Удаляем бинарник
   if command -v hysteria &>/dev/null; then
@@ -151,10 +159,10 @@ if [[ $REMOVE_HYSTERIA -eq 1 ]]; then
     log "Бинарник hysteria удалён: $HYSTERIA_BIN"
   fi
 
-  # Удаляем конфиг
-  if [[ -f /etc/hysteria/config.yaml ]]; then
-    rm -f /etc/hysteria/config.yaml
-    log "Конфиг Hysteria удалён"
+  # Удаляем конфиг и пустую директорию
+  if [[ -d /etc/hysteria ]]; then
+    rm -rf /etc/hysteria
+    log "Директория /etc/hysteria удалена"
   fi
 
   # Удаляем firewall правила Hysteria
