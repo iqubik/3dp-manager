@@ -238,48 +238,44 @@ fi
 #################################
 # СБОР ДАННЫХ
 #################################
-read -rp "Введите домен сервера (если пропустить, будет использоваться IP без HTTPS): " INPUT_HOST
+read -rp "Введите домен сервера (Enter = использовать IP): " INPUT_HOST
 
 USE_SSL=false
 CERT_PATH=""
 KEY_PATH=""
-SKIP_SSL_SETUP=false
 
 if [ -z "$INPUT_HOST" ]; then
   UI_HOST=$(hostname -I | awk '{print $1}')
-  log "Домен не указан. Используется локальный IP: $UI_HOST"
-  log "Режим HTTPS принудительно отключен для IP-адреса."
-  USE_SSL=false
-  SKIP_SSL_SETUP=true
+  log "Домен не указан. Будет использоваться IP: $UI_HOST"
 else
   UI_HOST=$INPUT_HOST
-  SKIP_SSL_SETUP=false
 fi
 
 # Настройка SSL
-if [[ "$SKIP_SSL_SETUP" == "false" ]]; then
-  LE_CERT="/etc/letsencrypt/live/$UI_HOST/fullchain.pem"
-  LE_KEY="/etc/letsencrypt/live/$UI_HOST/privkey.pem"
+LE_CERT="/etc/letsencrypt/live/$UI_HOST/fullchain.pem"
+LE_KEY="/etc/letsencrypt/live/$UI_HOST/privkey.pem"
 
-  if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
-    log "Найдены существующие сертификаты Let's Encrypt."
-    USE_SSL=true
-    CERT_PATH="$LE_CERT"
-    KEY_PATH="$LE_KEY"
-  else
-    log "Сертификаты для $UI_HOST не найдены."
-    echo ""
-    echo "Выберите тип SSL:"
-    echo "  1) Получить Let's Encrypt автоматически (нужны открытые порты 80/443)"
-    echo "  2) Сгенерировать самоподписанный сертификат (Self-signed, для тестов)"
-    echo "  3) Использовать свои сертификаты (указать пути)"
-    echo "  4) Пропустить SSL — использовать HTTP"
-    echo ""
-    read -rp "Ваш выбор (1/2/3/4) [4]: " ssl_choice
+if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
+  log "Найдены существующие сертификаты для $UI_HOST."
+  USE_SSL=true
+  CERT_PATH="$LE_CERT"
+  KEY_PATH="$LE_KEY"
+else
+  echo ""
+  echo "Выберите тип подключения:"
+  echo "  1) HTTPS — Let's Encrypt (нужен реальный домен, порты 80/443)"
+  echo "  2) HTTPS — Self-signed (самоподписанный, для тестов/VM)"
+  echo "  3) HTTPS — Свои сертификаты (указать пути)"
+  echo "  4) HTTP — без шифрования"
+  echo ""
+  read -rp "Ваш выбор (1/2/3/4) [4]: " ssl_choice
 
-    case "$ssl_choice" in
-      1)
-        log "Получение Let's Encrypt сертификата..."
+  case "$ssl_choice" in
+    1)
+      if [[ "$UI_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        warn "Let's Encrypt не работает с IP-адресами. Переключение на HTTP."
+      else
+        log "Получение Let's Encrypt сертификата для $UI_HOST..."
         read -e -p "Email для Let's Encrypt уведомлений: " LE_EMAIL
         LE_EMAIL=$(echo "$LE_EMAIL" | tr -cd 'a-zA-Z0-9.@_-')
 
@@ -304,49 +300,47 @@ if [[ "$SKIP_SSL_SETUP" == "false" ]]; then
           log "Let's Encrypt сертификат получен для $UI_HOST"
         else
           warn "Сертификат не получен. Переключение на HTTP."
-          USE_SSL=false
         fi
-        ;;
+      fi
+      ;;
 
-      2)
-        log "Генерация самоподписанного сертификата..."
-        mkdir -p "/etc/letsencrypt/live/$UI_HOST"
-        openssl req -x509 -nodes -days 365 \
-          -newkey rsa:2048 \
-          -keyout "/etc/letsencrypt/live/$UI_HOST/privkey.pem" \
-          -out "/etc/letsencrypt/live/$UI_HOST/fullchain.pem" \
-          -subj "/CN=$UI_HOST" \
-          -addext "subjectAltName=DNS:$UI_HOST" 2>/dev/null
+    2)
+      log "Генерация самоподписанного сертификата для $UI_HOST..."
+      mkdir -p "/etc/letsencrypt/live/$UI_HOST"
+      openssl req -x509 -nodes -days 365 \
+        -newkey rsa:2048 \
+        -keyout "/etc/letsencrypt/live/$UI_HOST/privkey.pem" \
+        -out "/etc/letsencrypt/live/$UI_HOST/fullchain.pem" \
+        -subj "/CN=$UI_HOST" \
+        -addext "subjectAltName=DNS:$UI_HOST,IP:$UI_HOST" 2>/dev/null
 
-        if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
-          USE_SSL=true
-          CERT_PATH="$LE_CERT"
-          KEY_PATH="$LE_KEY"
-          log "Self-signed сертификат сгенерирован для $UI_HOST"
-          warn "Браузер будет предупреждать о небезопасном соединении — это нормально для тестов."
-        else
-          warn "Не удалось сгенерировать сертификат. Переключение на HTTP."
-          USE_SSL=false
-        fi
-        ;;
+      if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
+        USE_SSL=true
+        CERT_PATH="$LE_CERT"
+        KEY_PATH="$LE_KEY"
+        log "Self-signed сертификат сгенерирован для $UI_HOST"
+        warn "Браузер будет предупреждать о небезопасном соединении — это нормально для тестов."
+      else
+        warn "Не удалось сгенерировать сертификат. Переключение на HTTP."
+      fi
+      ;;
 
-      3)
-        read -rp "Путь к fullchain.pem: " user_cert
-        read -rp "Путь к privkey.pem: " user_key
-        if [[ -f "$user_cert" && -f "$user_key" ]]; then
-          USE_SSL=true
-          CERT_PATH="$user_cert"
-          KEY_PATH="$user_key"
-        else
-          warn "Файлы сертификатов не найдены. Будет использоваться HTTP."
-        fi
-        ;;
+    3)
+      read -rp "Путь к fullchain.pem: " user_cert
+      read -rp "Путь к privkey.pem: " user_key
+      if [[ -f "$user_cert" && -f "$user_key" ]]; then
+        USE_SSL=true
+        CERT_PATH="$user_cert"
+        KEY_PATH="$user_key"
+      else
+        warn "Файлы сертификатов не найдены. Будет использоваться HTTP."
+      fi
+      ;;
 
-      *)
-        log "SSL пропущен. Будет использоваться HTTP."
-        ;;
-    esac
-  fi
+    *)
+      log "Будет использоваться HTTP."
+      ;;
+  esac
 fi
 
 FINAL_PORT=$(get_random_port)
