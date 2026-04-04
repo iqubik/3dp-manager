@@ -83,7 +83,12 @@ const generateId = () => Math.random().toString(36).substring(7);
 const getSubscriptionUrl = (uuid: string, tunnelId: string | number) => {
   // Используем относительный путь - Nginx проксирует /bus/ на бэкенд
   const tunnelPart = tunnelId !== 'main' ? `/${tunnelId}` : '';
-  return `/bus/${uuid}${tunnelPart}`;
+  const path = `/bus/${uuid}${tunnelPart}`;
+  // Для копирования нужен полный URL с origin
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
 };
 
 export default function SubscriptionsPage() {
