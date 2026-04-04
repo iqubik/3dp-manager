@@ -265,10 +265,36 @@ case "$ssl_choice" in
       LE_KEY="/etc/letsencrypt/live/$UI_HOST/privkey.pem"
 
       if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
-        log "Найдены существующие сертификаты для $UI_HOST."
-        USE_SSL=true
-        CERT_PATH="$LE_CERT"
-        KEY_PATH="$LE_KEY"
+        # Проверяем что сертификат не истёк и ключ соответствует
+        if openssl x509 -checkend 0 -noout -in "$LE_CERT" 2>/dev/null && \
+           openssl x509 -noout -modulus -in "$LE_CERT" 2>/dev/null | md5sum > /tmp/cert_hash && \
+           openssl rsa -noout -modulus -in "$LE_KEY" 2>/dev/null | md5sum > /tmp/key_hash && \
+           diff -q /tmp/cert_hash /tmp/key_hash >/dev/null 2>&1; then
+          log "Найдены валидные сертификаты для $UI_HOST."
+          USE_SSL=true
+          CERT_PATH="$LE_CERT"
+          KEY_PATH="$LE_KEY"
+        else
+          warn "Найдены сертификаты для $UI_HOST, но они невалидны. Перегенерируем."
+          # Удаляем старые и генерируем новые
+          rm -rf "/etc/letsencrypt/live/$UI_HOST"
+          mkdir -p "/etc/letsencrypt/live/$UI_HOST"
+          openssl req -x509 -nodes -days 365 \
+            -newkey rsa:2048 \
+            -keyout "/etc/letsencrypt/live/$UI_HOST/privkey.pem" \
+            -out "/etc/letsencrypt/live/$UI_HOST/fullchain.pem" \
+            -subj "/CN=$UI_HOST" \
+            -addext "subjectAltName=IP:$UI_HOST" 2>/dev/null
+          if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
+            USE_SSL=true
+            CERT_PATH="$LE_CERT"
+            KEY_PATH="$LE_KEY"
+            log "Self-signed сертификат перегенерирован для $UI_HOST"
+            warn "Браузер будет предупреждать — это нормально для тестов."
+          else
+            warn "Не удалось сгенерировать сертификат. Переключение на HTTP."
+          fi
+        fi
       else
         log "Получение Let's Encrypt сертификата для $UI_HOST..."
         read -e -p "Email для уведомлений Let's Encrypt: " LE_EMAIL
