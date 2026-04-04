@@ -14,7 +14,7 @@
 
 ## Учётные данные (по умолчанию)
 
-**Локальный стенд (`.env.local`):**
+**Локальный стенд (`.env`):**
 ```
 ADMIN_LOGIN: admin
 ADMIN_PASSWORD: admin
@@ -31,52 +31,52 @@ JWT_SECRET: localDevSecretKey12345678901234567890
 ### Полный запуск (с пересозданием volumes)
 ```powershell
 # Первый запуск или полная пересборка
-docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --force-recreate
+docker compose -f docker-compose.local.yml --env-file .env up -d --build --force-recreate
 
 # Если нужно очистить БД и пересоздать volumes
-docker compose -f docker-compose.local.yml --env-file .env.local down -v
-docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
+docker compose -f docker-compose.local.yml --env-file .env down -v
+docker compose -f docker-compose.local.yml --env-file .env up -d --build
 ```
 
 ### Частичный перезапуск
 ```powershell
 # Только frontend (без пересборки)
-docker compose -f docker-compose.local.yml --env-file .env.local restart frontend
+docker compose -f docker-compose.local.yml --env-file .env restart frontend
 
 # Только backend (без пересборки)
-docker compose -f docker-compose.local.yml --env-file .env.local restart backend
+docker compose -f docker-compose.local.yml --env-file .env restart backend
 
 # Frontend с пересборкой
-docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps frontend
+docker compose -f docker-compose.local.yml --env-file .env up -d --build --no-deps frontend
 
 # Backend с пересборкой
-docker compose -f docker-compose.local.yml --env-file .env.local up -d --build --no-deps backend
+docker compose -f docker-compose.local.yml --env-file .env up -d --build --no-deps backend
 ```
 
 ### Статус контейнеров
 ```powershell
-docker compose -f docker-compose.local.yml --env-file .env.local ps
+docker compose -f docker-compose.local.yml --env-file .env ps
 ```
 
 ### Просмотр логов
 ```powershell
 # Backend логи
-docker compose -f docker-compose.local.yml --env-file .env.local logs -f backend
+docker compose -f docker-compose.local.yml --env-file .env logs -f backend
 
 # Frontend логи
-docker compose -f docker-compose.local.yml --env-file .env.local logs -f frontend
+docker compose -f docker-compose.local.yml --env-file .env logs -f frontend
 
 # Последние 50 строк
-docker compose -f docker-compose.local.yml --env-file .env.local logs --tail 50 backend
+docker compose -f docker-compose.local.yml --env-file .env logs --tail 50 backend
 ```
 
 ### Остановка
 ```powershell
 # Остановка без удаления volumes
-docker compose -f docker-compose.local.yml --env-file .env.local down
+docker compose -f docker-compose.local.yml --env-file .env down
 
 # Полная очистка (включая volumes)
-docker compose -f docker-compose.local.yml --env-file .env.local down -v
+docker compose -f docker-compose.local.yml --env-file .env down -v
 ```
 
 ## Быстрые проверки

@@ -22,13 +22,13 @@ usage() {
   -r  Git URL вашего форка (обязательно), например:
       https://github.com/<user>/3dp-manager.git
   -b  Ветка с вашими правками (обязательно), например:
-      dp-fix
+      dp-custom
   -p  Папка установленного 3dp-manager (по умолчанию /opt/3dp-manager)
   -s  Папка исходников для сборки (по умолчанию /opt/3dp-manager-src)
   -h  Показать эту справку
 
 Пример:
-  ./update-custom.sh -r https://github.com/me/3dp-manager.git -b dp-fix
+  ./update-custom.sh -r https://github.com/iqubik/3dp-manager.git -b dp-custom
 EOF
 }
 
@@ -84,20 +84,16 @@ check_containers_running() {
 
 check_and_fix_credentials() {
   log "Проверка учётных данных на безопасность..."
-  
+
   local env_file=".env"
   local credentials_changed=0
   
   # Проверяем, существует ли .env файл
   if [[ ! -f "$env_file" ]]; then
     log "Создание .env файла с безопасными учётными данными..."
-    
-    # Генерируем случайные пароли
-    local db_pass
-    local jwt_secret
-    local admin_login
-    local admin_pass
-    
+
+    local db_pass jwt_secret admin_login admin_pass
+
     db_pass=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
     jwt_secret=$(openssl rand -base64 32)
     admin_login=$(openssl rand -base64 8 | tr -dc 'A-Za-z0-9' | cut -c1-8)
@@ -115,58 +111,50 @@ PORT=3100
 LOG_LEVEL=error
 ALLOWED_ORIGINS=
 EOF
-    
+
     log "Сгенерированы новые учётные данные:"
     log "  ADMIN_LOGIN: ${admin_login}"
     log "  ADMIN_PASSWORD: ${admin_pass}"
     log "  POSTGRES_PASSWORD: ${db_pass}"
     log "  JWT_SECRET: ${jwt_secret}"
     log "⚠️ Сохраните эти данные в безопасном месте!"
-    
+
     credentials_changed=1
   else
-    # Проверяем, не используются ли дефолтные значения
-    local admin_login_val
-    local admin_pass_val
-    local jwt_secret_val
-    local db_pass_val
-    
+    local admin_login_val admin_pass_val jwt_secret_val db_pass_val
+
     admin_login_val=$(grep -E "^ADMIN_LOGIN=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
     admin_pass_val=$(grep -E "^ADMIN_PASSWORD=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
     jwt_secret_val=$(grep -E "^JWT_SECRET=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
     db_pass_val=$(grep -E "^POSTGRES_PASSWORD=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
-    
+
     local needs_update=0
-    
+
     if [[ "$admin_login_val" == "admin" ]] || [[ -z "$admin_login_val" ]]; then
       warn "Обнаружен дефолтный ADMIN_LOGIN=admin"
       needs_update=1
     fi
-    
+
     if [[ "$admin_pass_val" == "admin" ]] || [[ -z "$admin_pass_val" ]]; then
       warn "Обнаружен дефолтный ADMIN_PASSWORD=admin"
       needs_update=1
     fi
-    
+
     if [[ "$jwt_secret_val" == "secretKey" ]] || [[ -z "$jwt_secret_val" ]]; then
       warn "Обнаружен дефолтный JWT_SECRET=secretKey"
       needs_update=1
     fi
-    
+
     if [[ "$db_pass_val" == "admin" ]] || [[ -z "$db_pass_val" ]]; then
       warn "Обнаружен дефолтный POSTGRES_PASSWORD=admin"
       needs_update=1
     fi
-    
+
     if [[ $needs_update -eq 1 ]]; then
       log "Генерация новых безопасных учётных данных..."
-      
-      # Генерируем новые пароли
-      local new_db_pass
-      local new_jwt_secret
-      local new_admin_login
-      local new_admin_pass
-      
+
+      local new_db_pass new_jwt_secret new_admin_login new_admin_pass
+
       new_db_pass=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | cut -c1-12)
       new_jwt_secret=$(openssl rand -base64 32)
       new_admin_login=$(openssl rand -base64 8 | tr -dc 'A-Za-z0-9' | cut -c1-8)
@@ -188,20 +176,20 @@ PORT=3100
 LOG_LEVEL=error
 ALLOWED_ORIGINS=
 EOF
-      
+
       log "Сгенерированы новые учётные данные:"
       log "  ADMIN_LOGIN: ${new_admin_login}"
       log "  ADMIN_PASSWORD: ${new_admin_pass}"
       log "  POSTGRES_PASSWORD: ${new_db_pass}"
       log "  JWT_SECRET: ${new_jwt_secret}"
       log "⚠️ Сохраните эти данные в безопасном месте!"
-      
+
       credentials_changed=1
     else
       log "Учётные данные безопасны ✅"
     fi
   fi
-  
+
   return $credentials_changed
 }
 
@@ -274,7 +262,7 @@ ensure_bus_location() {
       if (found_api && $0 ~ /^[[:space:]]*\}/) {
         print ""
         print "    location /bus/ {"
-        print "        proxy_pass http://backend:3000/bus/;"
+        print "        proxy_pass http://backend:3100/bus/;"
         print "        proxy_set_header Host $http_host;"
         print "        proxy_set_header X-Real-IP $remote_addr;"
         print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
@@ -290,8 +278,11 @@ ensure_bus_location() {
   mv "$tmp_file" "$nginx_conf"
 }
 
-REPO_URL=""
-BRANCH=""
+#################################
+# PARSE ARGS
+#################################
+REPO_URL="https://github.com/iqubik/3dp-manager.git"
+BRANCH="dp-custom"
 PROJECT_DIR="/opt/3dp-manager"
 SOURCE_DIR="/opt/3dp-manager-src"
 
@@ -301,24 +292,13 @@ while getopts ":r:b:p:s:h" opt; do
     b) BRANCH="$OPTARG" ;;
     p) PROJECT_DIR="$OPTARG" ;;
     s) SOURCE_DIR="$OPTARG" ;;
-    h)
-      usage
-      exit 0
-      ;;
-    :)
-      die "Параметр -$OPTARG требует значение"
-      ;;
-    \?)
-      die "Неизвестный параметр: -$OPTARG"
-      ;;
+    h) usage; exit 0 ;;
+    :) die "Параметр -$OPTARG требует значение" ;;
+    \?) die "Неизвестный параметр: -$OPTARG" ;;
   esac
 done
 
-[[ -n "$REPO_URL" ]] || { usage; die "Укажите -r <repo_url>"; }
-[[ -n "$BRANCH" ]] || { usage; die "Укажите -b <branch>"; }
-
 need_root
-
 [[ -d "$PROJECT_DIR" ]] || die "Папка проекта не найдена: $PROJECT_DIR"
 [[ -f "$PROJECT_DIR/docker-compose.yml" ]] || die "Не найден docker-compose.yml в $PROJECT_DIR"
 
@@ -333,9 +313,8 @@ log "Compose команда: ${COMPOSE_CMD[*]}"
 check_and_fix_credentials || true
 
 #################################
-# PREPARE SOURCE
+# FETCH AND UPDATE SOURCE
 #################################
-
 log "Подготовка исходников в $SOURCE_DIR"
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
   if [[ -e "$SOURCE_DIR" ]]; then
@@ -357,6 +336,24 @@ else
   fi
 fi
 
+#################################
+# UPDATE DOCKER-COMPOSE FROM REPO
+#################################
+log "Обновление docker-compose.yml из ветки $BRANCH..."
+curl -fsSL "${REPO_URL%.git}/raw/branch/$BRANCH/docker-compose.yml" \
+  -o "$PROJECT_DIR/docker-compose.yml" 2>/dev/null || {
+  # Fallback: скачиваем через raw.githubusercontent.com
+  if [[ "$REPO_URL" =~ ^https://github\.com/([^/]+)/([^/]+?)(\.git)?$ ]]; then
+    curl -fsSL "https://raw.githubusercontent.com/${BASH_REMATCH[1]}/${BASH_REMATCH[2]}/$BRANCH/docker-compose.yml" \
+      -o "$PROJECT_DIR/docker-compose.yml" || die "Не удалось скачать docker-compose.yml"
+  else
+    die "Не удалось скачать docker-compose.yml из $REPO_URL"
+  fi
+}
+
+#################################
+# CREATE COMPOSE OVERRIDE
+#################################
 COMPOSE_OVERRIDE="$PROJECT_DIR/docker-compose.custom.yml"
 cat > "$COMPOSE_OVERRIDE" <<EOF
 services:
@@ -368,9 +365,15 @@ services:
     image: 3dp-manager-client:custom
 EOF
 
+#################################
+# FIX NGINX CONFIG
+#################################
 ensure_nginx_api_timeouts "$PROJECT_DIR/client/nginx-client.conf"
 ensure_bus_location "$PROJECT_DIR/client/nginx-client.conf"
 
+#################################
+# BUILD AND RESTART
+#################################
 log "Сборка custom-образов backend/frontend"
 cd "$PROJECT_DIR"
 "${COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.custom.yml build backend frontend
