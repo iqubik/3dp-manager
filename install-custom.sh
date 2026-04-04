@@ -244,13 +244,14 @@ CERT_PATH=""
 KEY_PATH=""
 
 echo ""
-echo "Выберите тип SSL/HTTPS сертификации:"
+echo -e "${GREEN}Выберите тип SSL/HTTPS сертификации:${NC}"
 echo "  1) HTTPS — Let's Encrypt (нужен реальный домен, привязанный к IP, + открыты порты 80/443 в UFW)"
 echo "  2) HTTPS — Self-signed (самоподписанный на IP сервера, для тестов/VM)"
 echo "  3) HTTPS — Свои сертификаты (указать пути)"
 echo "  4) HTTP — без шифрования"
 echo ""
-read -rp "Ваш выбор (1/2/3/4) [4]: " ssl_choice
+printf "Ваш выбор (1/2/3/4) [\033[0;31m4\033[0m]: "
+read -r ssl_choice
 
 case "$ssl_choice" in
   1)
