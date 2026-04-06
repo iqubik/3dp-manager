@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Delete, Add, Link as LinkIcon, OpenInNew, ContentCopy, Dns, Router, Edit, MoreVert, Remove, Refresh } from '@mui/icons-material';
 import api from '../api';
+import { copyToClipboard } from '../utils/copyToClipboard';
 import { Logger } from '../utils/logger';
 
 interface Subscription {
@@ -81,10 +82,14 @@ const patchLink = function (link: string, newHost: string): string {
 const generateId = () => Math.random().toString(36).substring(7);
 
 const getSubscriptionUrl = (uuid: string, tunnelId: string | number) => {
-  // Поскольку Nginx/Vite Proxy не используется, направляем запросы /bus/ жестко на порт 3000 бэкенда
-  const baseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
+  // Используем относительный путь - Nginx проксирует /bus/ на бэкенд
   const tunnelPart = tunnelId !== 'main' ? `/${tunnelId}` : '';
-  return `${baseUrl}/bus/${uuid}${tunnelPart}`;
+  const path = `/bus/${uuid}${tunnelPart}`;
+  // Для копирования нужен полный URL с origin
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
 };
 
 export default function SubscriptionsPage() {
@@ -111,7 +116,10 @@ export default function SubscriptionsPage() {
   const [snackbar, setSnackbar] = useState({ open: false, type: 'success' as 'success' | 'error', message: '' });
 
   // Confirmation dialog state
-  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', onConfirm: () => {} });
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false, title: '', onConfirm: () => {},
+    confirmText: 'Удалить', confirmColor: 'error' as 'error' | 'primary'
+  });
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -271,6 +279,8 @@ export default function SubscriptionsPage() {
     setConfirmDialog({
       open: true,
       title: 'Удалить подписку и все соединения?',
+      confirmText: 'Удалить',
+      confirmColor: 'error',
       onConfirm: async () => {
         Logger.debug(`Deleting subscription: ${id}`, 'Subs');
         await api.delete(`/subscriptions/${id}`);
@@ -307,6 +317,8 @@ export default function SubscriptionsPage() {
     setConfirmDialog({
       open: true,
       title: `Обновить подписку "${sub.name}" сейчас?`,
+      confirmText: 'Обновить',
+      confirmColor: 'primary',
       onConfirm: async () => {
         try {
           Logger.debug(`Starting manual rotation for subscription: ${sub.id}`, 'Subs');
@@ -338,6 +350,11 @@ export default function SubscriptionsPage() {
       setCurrentLinks(links);
     }
     setLinksOpen(true);
+  };
+
+  const handleCopyLink = async (uuid: string, tunnelId: string | number) => {
+    await copyToClipboard(getSubscriptionUrl(uuid, tunnelId));
+    setSnackbar({ open: true, type: 'success', message: 'Ссылка на подписку скопирована' });
   };
 
   return (
@@ -400,7 +417,7 @@ export default function SubscriptionsPage() {
                     <>
                       <IconButton
                         color="primary"
-                        onClick={() => navigator.clipboard.writeText(getSubscriptionUrl(sub.uuid, selectedServer))}
+                        onClick={() => handleCopyLink(sub.uuid, selectedServer)}
                         title="Копировать ссылку"
                       >
                         <ContentCopy />
@@ -435,7 +452,7 @@ export default function SubscriptionsPage() {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         {isMobile && activeSub && (
-          <MenuItem onClick={() => navigator.clipboard.writeText(getSubscriptionUrl(activeSub.uuid, selectedServer))}>
+          <MenuItem onClick={() => handleCopyLink(activeSub.uuid, selectedServer)}>
             <ListItemIcon><ContentCopy fontSize="small" color="primary" /></ListItemIcon>
             <ListItemText>Копировать ссылку</ListItemText>
           </MenuItem>
@@ -593,7 +610,7 @@ export default function SubscriptionsPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => navigator.clipboard.writeText(currentLinks.join('\n'))}>Копировать все</Button>
+          <Button onClick={() => copyToClipboard(currentLinks.join('\n'))}>Копировать все</Button>
           <Button onClick={() => setLinksOpen(false)}>Закрыть</Button>
         </DialogActions>
       </Dialog>
@@ -612,9 +629,9 @@ export default function SubscriptionsPage() {
               setConfirmDialog({ ...confirmDialog, open: false });
             }}
             variant="contained"
-            color="error"
+            color={confirmDialog.confirmColor}
           >
-            Удалить
+            {confirmDialog.confirmText}
           </Button>
         </DialogActions>
       </Dialog>
