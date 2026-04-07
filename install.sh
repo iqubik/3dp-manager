@@ -209,7 +209,7 @@ printf "Ваш выбор (1/2/3/4) [\033[0;31m4\033[0m]: "
 read -r ssl_choice
 
 case "$ssl_choice" in
-  1)
+1)
     echo ""
     read -rp "Введите домен (должен быть привязан к IP этого сервера): " INPUT_HOST
 
@@ -220,38 +220,32 @@ case "$ssl_choice" in
       LE_CERT="/etc/letsencrypt/live/$UI_HOST/fullchain.pem"
       LE_KEY="/etc/letsencrypt/live/$UI_HOST/privkey.pem"
 
+      # Флаг для понимания, нужно ли запрашивать сертификат
+      NEED_NEW_CERT=true
+
       if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
-        # Проверяем что сертификат не истёк и ключ соответствует
+        # Проверяем что сертификат не истёк и ключ соответствует (универсально для RSA и ECDSA)
         if openssl x509 -checkend 0 -noout -in "$LE_CERT" 2>/dev/null && \
-           openssl x509 -noout -modulus -in "$LE_CERT" 2>/dev/null | md5sum > /tmp/cert_hash && \
-           openssl rsa -noout -modulus -in "$LE_KEY" 2>/dev/null | md5sum > /tmp/key_hash && \
-           diff -q /tmp/cert_hash /tmp/key_hash >/dev/null 2>&1; then
+           openssl x509 -noout -pubkey -in "$LE_CERT" 2>/dev/null > /tmp/cert_pub && \
+           openssl pkey -pubout -in "$LE_KEY" 2>/dev/null > /tmp/key_pub && \
+           diff -q /tmp/cert_pub /tmp/key_pub >/dev/null 2>&1; then
+           
           log "Найдены валидные сертификаты для $UI_HOST."
           USE_SSL=true
           CERT_PATH="$LE_CERT"
           KEY_PATH="$LE_KEY"
+          NEED_NEW_CERT=false
         else
-          warn "Найдены сертификаты для $UI_HOST, но они невалидны. Перегенерируем."
-          # Удаляем старые и генерируем новые
+          warn "Найдены сертификаты для $UI_HOST, но они истекли или невалидны. Обновляем через certbot..."
+          # Удаляем невалидные файлы, чтобы certbot не ругался при перевыпуске
           rm -rf "/etc/letsencrypt/live/$UI_HOST"
-          mkdir -p "/etc/letsencrypt/live/$UI_HOST"
-          openssl req -x509 -nodes -days 365 \
-            -newkey rsa:2048 \
-            -keyout "/etc/letsencrypt/live/$UI_HOST/privkey.pem" \
-            -out "/etc/letsencrypt/live/$UI_HOST/fullchain.pem" \
-            -subj "/CN=$UI_HOST" \
-            -addext "subjectAltName=IP:$UI_HOST" 2>/dev/null
-          if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
-            USE_SSL=true
-            CERT_PATH="$LE_CERT"
-            KEY_PATH="$LE_KEY"
-            log "Self-signed сертификат перегенерирован для $UI_HOST"
-            warn "Браузер будет предупреждать — это нормально для тестов."
-          else
-            warn "Не удалось сгенерировать сертификат. Переключение на HTTP."
-          fi
+          rm -rf "/etc/letsencrypt/archive/$UI_HOST"
+          rm -rf "/etc/letsencrypt/renewal/$UI_HOST.conf"
         fi
-      else
+      fi
+
+      # Если сертификатов не было или они оказались невалидными
+      if [ "$NEED_NEW_CERT" = true ]; then
         log "Получение Let's Encrypt сертификата для $UI_HOST..."
         read -e -p "Email для уведомлений Let's Encrypt: " LE_EMAIL
         LE_EMAIL=$(echo "$LE_EMAIL" | tr -cd 'a-zA-Z0-9.@_-')
@@ -268,7 +262,7 @@ case "$ssl_choice" in
           --agree-tos \
           --non-interactive \
           --email "$LE_EMAIL" \
-          -d "$UI_HOST" || die "Не удалось получить сертификат Let's Encrypt"
+          -d "$UI_HOST" || warn "Не удалось получить сертификат Let's Encrypt"
 
         if [[ -f "$LE_CERT" && -f "$LE_KEY" ]]; then
           USE_SSL=true
