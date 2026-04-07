@@ -93,13 +93,6 @@ LOG_LEVEL=error
 ALLOWED_ORIGINS=
 EOF
 
-    log "Сгенерированы новые учётные данные:"
-    log "  ADMIN_LOGIN: ${admin_login}"
-    log "  ADMIN_PASSWORD: ${admin_pass}"
-    log "  POSTGRES_PASSWORD: ${db_pass}"
-    log "  JWT_SECRET: ${jwt_secret}"
-    log "⚠️ Сохраните эти данные в безопасном месте!"
-
     credentials_changed=1
   else
     # Проверяем, не используются ли дефолтные значения
@@ -162,13 +155,6 @@ JWT_SECRET=${new_jwt_secret}
 ADMIN_LOGIN=${new_admin_login}
 ADMIN_PASSWORD=${new_admin_pass}
 EOF
-
-      log "Сгенерированы новые учётные данные:"
-      log "  ADMIN_LOGIN: ${new_admin_login}"
-      log "  ADMIN_PASSWORD: ${new_admin_pass}"
-      log "  POSTGRES_PASSWORD: ${new_db_pass}"
-      log "  JWT_SECRET: ${new_jwt_secret}"
-      log "⚠️ Сохраните эти данные в безопасном месте!"
 
       credentials_changed=1
     else
