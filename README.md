@@ -97,10 +97,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/main
 > [!WARNING]  
 > Сервис перенаправления работает на промежуточном сервере
 
-Сервис перенаправления позволяет проксировать входящие порты с промежуточного сервера на основной.
+Сервис перенаправления позволяет проксировать входящие порты с промежуточного сервера на основной. IP адрес замените на IP адрес основного сервера (не домен! только IP адрес):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/main/forwarding_install.sh)
+sudo ORIGIN_IP="IP_ADDRESS" bash -c "$(curl -sSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/main/forwarding_install.sh)"
 ```
 
 <sup>Краткое описание: добавляет правила перенаправления.</sup>
@@ -111,7 +111,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/main
 bash <(curl -fsSL https://raw.githubusercontent.com/denpiligrim/3dp-manager/main/forwarding_delete.sh)
 ```
 
-<sup>Краткое описание: удаляет правила перенаправления.</sup>
+<sup>Краткое описание: удаляет правила перенаправления. После удаления, чтобы изменения вступили в силу, перезапустите фаервол `ufw reload` и перезапустите систему `reboot`</sup>
 
 ---
 
